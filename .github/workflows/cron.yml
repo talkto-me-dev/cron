@@ -1,0 +1,43 @@
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout private conf
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/conf
+          token: ${{ secrets.GH_PAT }}
+          path: conf
+
+      - uses: actions/checkout@v5
+        with:
+          path: cron
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: ${{inputs.name}}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -ex
+          sudo bash -c 'echo "StrictHostKeyChecking accept-new" >> /etc/ssh/ssh_config'
+          git config --global user.name github-action
+          git config --global user.email action@github.com
+          # rm -rf ~/.ssh
+          # cd conf
+          # chmod 700 ssh
+          # ln -s $(pwd)/ssh ~/.ssh
+          # chmod 600 ssh/*
+          # cd ..
+          cd cron
+          ln -s ../conf .
+          cd ${{inputs.name}}
+          ./run.sh
