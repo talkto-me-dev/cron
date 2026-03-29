@@ -25,7 +25,7 @@ const dumpOnlineSchema = () =>
   ])
 
 const schemaDiff = (online_file, desired_file) => {
-  const raw = (spawnSync("mysqldef", ["--file", desired_file, online_file], { encoding: "utf-8" }).stdout || "").trim()
+  const raw = (spawnSync("mysqldef", ["--file", desired_file, "--enable-drop", online_file], { encoding: "utf-8" }).stdout || "").trim()
   if (!raw || raw.includes("Nothing is modified")) return ""
   return raw
     .split("\n")
