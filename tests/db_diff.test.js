@@ -1,72 +1,58 @@
 #! /usr/bin/env bun
-import { test, expect } from "vitest"
-import { migrationName } from "../db_diff/utils.js"
+import { test, expect, beforeAll, afterAll } from "vitest"
+import { migrationName, schemaDiff } from "../db_diff/utils.js"
+import { writeFileSync, unlinkSync } from "fs"
 
 test("migrationName generates correct filenames", () => {
   const fixedDate = new Date("2026-03-29T04:30:40.000Z")
   const prefix = "20260329043040_"
 
-  // 1. Basic ALTER
-  expect(migrationName("ALTER TABLE chat ADD COLUMN is_deleted tinyint(1);", fixedDate))
-    .toBe(prefix + "chat.sql")
+  expect(migrationName("ALTER TABLE chat ADD COLUMN is_deleted tinyint(1);", fixedDate)).toBe(prefix + "chat.sql")
+  expect(migrationName("CREATE TABLE user (id int);", fixedDate)).toBe(prefix + "user.sql")
+  expect(migrationName("DROP TABLE old_logs;", fixedDate)).toBe(prefix + "old_logs.sql")
+  expect(migrationName("CREATE TABLE IF NOT EXISTS chat_history (id int);", fixedDate)).toBe(prefix + "chat_history.sql")
+  expect(migrationName("DROP TABLE IF EXISTS reply;", fixedDate)).toBe(prefix + "reply.sql")
+  expect(migrationName("ALTER TABLE `user_info` ADD COLUMN `age` int;", fixedDate)).toBe(prefix + "user_info.sql")
+  expect(migrationName("CREATE TABLE IF NOT EXISTS `payment_record` (id int);", fixedDate)).toBe(prefix + "payment_record.sql")
+  expect(migrationName("CREATE TABLE db.user (id int);", fixedDate)).toBe(prefix + "user.sql")
+  expect(migrationName("CREATE TABLE IF NOT EXISTS `my_db`.`orders` (id int);", fixedDate)).toBe(prefix + "orders.sql")
+  expect(migrationName("ALTER TABLE chat ADD COLUMN a int;\nALTER TABLE user DROP COLUMN b;\nCREATE TABLE tag (id int);", fixedDate)).toBe(prefix + "chat_user_tag.sql")
+  expect(migrationName("ALTER TABLE t1 ADD a int;\nALTER TABLE t2 ADD b int;\nALTER TABLE t3 ADD c int;\nALTER TABLE t4 ADD d int;", fixedDate)).toBe(prefix + "t1_t2_t3_etc.sql")
+  expect(migrationName("ALTER TABLE chat ADD a int;\nALTER TABLE chat DROP b;", fixedDate)).toBe(prefix + "chat.sql")
+  expect(migrationName("INSERT INTO user (id) VALUES (1);", fixedDate)).toBe(prefix + "schema_diff.sql")
+  expect(migrationName("CREATE   TABLE \n IF \n NOT \n EXISTS \n  weird_table  (id int);", fixedDate)).toBe(prefix + "weird_table.sql")
+})
 
-  // 2. Basic CREATE
-  expect(migrationName("CREATE TABLE user (id int);", fixedDate))
-    .toBe(prefix + "user.sql")
+beforeAll(() => {
+  writeFileSync("__test_online.sql", "")
+  writeFileSync("__test_desired.sql", "")
+})
 
-  // 3. Basic DROP
-  expect(migrationName("DROP TABLE old_logs;", fixedDate))
-    .toBe(prefix + "old_logs.sql")
+afterAll(() => {
+  try { unlinkSync("__test_online.sql") } catch (e) {}
+  try { unlinkSync("__test_desired.sql") } catch (e) {}
+})
 
-  // 4. CREATE IF NOT EXISTS (This is the specific case user mentioned it generates 'IF.sql')
-  expect(migrationName("CREATE TABLE IF NOT EXISTS chat_history (id int);", fixedDate))
-    .toBe(prefix + "chat_history.sql")
+test("schemaDiff outputs empty for identical schemas", () => {
+  writeFileSync("__test_online.sql", "CREATE TABLE a (id int);")
+  writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("")
+})
 
-  // 5. DROP IF EXISTS
-  expect(migrationName("DROP TABLE IF EXISTS reply;", fixedDate))
-    .toBe(prefix + "reply.sql")
+test("schemaDiff outputs DROP TABLE when target table missing in desired", () => {
+  writeFileSync("__test_online.sql", "CREATE TABLE a (id int);\nCREATE TABLE b (id int);")
+  writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("DROP TABLE `b`;")
+})
 
-  // 6. With backticks
-  expect(migrationName("ALTER TABLE `user_info` ADD COLUMN `age` int;", fixedDate))
-    .toBe(prefix + "user_info.sql")
+test("schemaDiff outputs DROP COLUMN when target column missing in desired", () => {
+  writeFileSync("__test_online.sql", "CREATE TABLE a (id int, name varchar(20));")
+  writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("ALTER TABLE `a` DROP COLUMN `name`;")
+})
 
-  // 7. With backticks and IF NOT EXISTS
-  expect(migrationName("CREATE TABLE IF NOT EXISTS `payment_record` (id int);", fixedDate))
-    .toBe(prefix + "payment_record.sql")
-
-  // 8. With database name prefix
-  expect(migrationName("CREATE TABLE db.user (id int);", fixedDate))
-    .toBe(prefix + "user.sql")
-
-  // 9. With database name prefix and backticks
-  expect(migrationName("CREATE TABLE IF NOT EXISTS `my_db`.`orders` (id int);", fixedDate))
-    .toBe(prefix + "orders.sql")
-
-  // 10. Multiple tables (1-3)
-  expect(migrationName("ALTER TABLE chat ADD COLUMN a int;\nALTER TABLE user DROP COLUMN b;\nCREATE TABLE tag (id int);", fixedDate))
-    .toBe(prefix + "chat_user_tag.sql")
-
-  // 11. Multiple tables (4+)
-  expect(migrationName(`
-    ALTER TABLE t1 ADD a int;
-    ALTER TABLE t2 ADD b int;
-    ALTER TABLE t3 ADD c int;
-    ALTER TABLE t4 ADD d int;
-  `, fixedDate))
-    .toBe(prefix + "t1_t2_t3_etc.sql")
-
-  // 12. Multiple statements same table (should deduplicate)
-  expect(migrationName(`
-    ALTER TABLE chat ADD a int;
-    ALTER TABLE chat DROP b;
-  `, fixedDate))
-    .toBe(prefix + "chat.sql")
-
-  // 13. Unparsable fallback
-  expect(migrationName("INSERT INTO user (id) VALUES (1);", fixedDate))
-    .toBe(prefix + "schema_diff.sql")
-
-  // 14. Extra spaces and line breaks
-  expect(migrationName("CREATE   TABLE \n IF \n NOT \n EXISTS \n  weird_table  (id int);", fixedDate))
-    .toBe(prefix + "weird_table.sql")
+test("schemaDiff outputs ADD COLUMN when new column added to desired", () => {
+  writeFileSync("__test_online.sql", "CREATE TABLE a (id int);")
+  writeFileSync("__test_desired.sql", "CREATE TABLE a (id int, age int);")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("ALTER TABLE `a` ADD COLUMN `age` int AFTER `id`;")
 })

@@ -1,3 +1,15 @@
+import { spawnSync } from "child_process"
+
+export const schemaDiff = (online_file, desired_file) => {
+  const raw = (spawnSync("mysqldef", ["--file", desired_file, "--enable-drop", online_file], { encoding: "utf-8" }).stdout || "").trim()
+  if (!raw || raw.includes("Nothing is modified")) return ""
+  return raw
+    .split("\n")
+    .filter((l) => l.trim() && !l.startsWith("-- ") && l !== "BEGIN;" && l !== "COMMIT;")
+    .join("\n")
+    .trim()
+}
+
 // ALTER TABLE chat ADD ...               → 20260329115400_chat.sql
 // ALTER TABLE chat ...; ALTER TABLE user  → 20260329115400_chat_user.sql
 // 改了 4+ 张表                             → 20260329115400_chat_user_order_etc.sql
