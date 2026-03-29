@@ -17,7 +17,7 @@ const stripNonTableDdl = (sql) =>
 
 const dumpOnlineSchema = () =>
   run("mysqldump", [
-    "--no-data", "--skip-comments", "--compact", "--ssl",
+    "--no-data", "--skip-comments", "--compact", "--ssl-mode=REQUIRED",
     `--ignore-table=${TIDB.database}.schema_migrations`,
     `-h${TIDB.hostname}`, `-P${TIDB.port}`,
     `-u${TIDB.username}`, `-p${TIDB.password}`,
