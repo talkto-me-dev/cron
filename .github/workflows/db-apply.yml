@@ -1,0 +1,14 @@
+name: db-apply
+
+env:
+  TZ: Asia/Shanghai
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/cron.yml
+    with:
+      name: db-apply
+    secrets: inherit
