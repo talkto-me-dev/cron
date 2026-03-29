@@ -1,7 +1,8 @@
 import { spawnSync } from "child_process"
+import { readFileSync } from "fs"
 
 export const schemaDiff = (online_file, desired_file) => {
-  const result = spawnSync("mysqldef", ["--file", desired_file, "--enable-drop", online_file], { encoding: "utf-8" })
+  const result = spawnSync("mysqldef", ["--enable-drop", online_file], { input: readFileSync(desired_file), encoding: "utf-8" })
   if (result.error) throw new Error(`Failed to run mysqldef: ${result.error.message}`)
   const raw = (result.stdout || "").trim()
   if (!raw || raw.includes("Nothing is modified")) return ""
