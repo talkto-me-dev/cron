@@ -74,6 +74,8 @@ const createPr = async (branch, migration_name, diff_sql) => {
 const main = async () => {
   cloneSrvRepo()
 
+  console.log("TIDB config:", JSON.stringify(TIDB))
+  console.log("databases:", run("mysql", ["-h" + TIDB.hostname, "-P" + TIDB.port, "-u" + TIDB.username, "-p" + TIDB.password, "--ssl-mode=REQUIRED", "-e", "SHOW DATABASES"]))
   const online_clean = stripNonTableDdl(dumpOnlineSchema())
   writeFileSync("online_schema.sql", online_clean)
 
