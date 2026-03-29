@@ -97,7 +97,7 @@ const main = async () => {
   console.log("diff SQL:\n", diff_sql)
 
   const migration_name = genMigrationFile(diff_sql),
-    branch = `auto/db_diff-${migration_name.slice(0, 8)}`
+    branch = `auto/db_diff-${migration_name.slice(0, 14)}`
 
   pushBranch(branch, migration_name)
   const pr_url = await createPr(branch, migration_name, diff_sql)
