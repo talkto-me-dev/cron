@@ -24,17 +24,7 @@ const dumpOnlineSchema = () =>
     TIDB.database,
   ])
 
-const schemaDiff = (online_file, desired_file) => {
-  const raw = (spawnSync("mysqldef", ["--file", desired_file, "--enable-drop", online_file], { encoding: "utf-8" }).stdout || "").trim()
-  if (!raw || raw.includes("Nothing is modified")) return ""
-  return raw
-    .split("\n")
-    .filter((l) => l.trim() && !l.startsWith("-- ") && l !== "BEGIN;" && l !== "COMMIT;")
-    .join("\n")
-    .trim()
-}
-
-import { migrationName } from "./utils.js"
+import { schemaDiff, migrationName } from "./utils.js"
 
 const genMigrationFile = (diff_sql) => {
   const name = migrationName(diff_sql)
