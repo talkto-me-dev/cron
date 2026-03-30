@@ -15,3 +15,4 @@ js 文件默认导出都写 default
 用 import.meta.dirname 获取当前目录
 拆分模块的时候，直接 export default（而不是先声明常量，然后 export default)
 测试调试代码写到./tests/ 目录下，第一行是 `#! /usr/bin/env bun`，文件要有可执行权限，用 vitest 测试框架写测试,不要用 mock，都用真实的
+不要在日志里打印任何敏感信息，比如密码、token 等

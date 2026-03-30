@@ -15,14 +15,16 @@ const stripNonTableDdl = (sql) =>
     .filter((l) => !/^\s*(CREATE\s+DATABASE|USE\s+|DROP\s+DATABASE)/i.test(l))
     .join("\n")
 
+const mysql_env = { ...process.env, MYSQL_PWD: TIDB.password }
+
 const dumpOnlineSchema = () =>
   run("mysqldump", [
     "--no-data", "--skip-comments", "--compact", "--ssl-mode=REQUIRED",
     `--ignore-table=${TIDB.database}.schema_migrations`,
     `-h${TIDB.hostname}`, `-P${TIDB.port}`,
-    `-u${TIDB.username}`, `-p${TIDB.password}`,
+    `-u${TIDB.username}`,
     TIDB.database,
-  ])
+  ], { env: mysql_env })
 
 import { schemaDiff, migrationName } from "./utils.js"
 
@@ -55,8 +57,6 @@ const createPr = async (branch, migration_name, diff_sql) => {
 const main = async () => {
   cloneSrvRepo()
 
-  console.log("TIDB config:", JSON.stringify(TIDB))
-  console.log("databases:", run("mysql", ["-h" + TIDB.hostname, "-P" + TIDB.port, "-u" + TIDB.username, "-p" + TIDB.password, "--ssl-mode=REQUIRED", "-e", "SHOW DATABASES"]))
   const online_clean = stripNonTableDdl(dumpOnlineSchema())
   writeFileSync("online_schema.sql", online_clean)
 

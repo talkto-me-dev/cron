@@ -9,9 +9,13 @@ export const SRV_REPO = "myaier/srv",
   DB_APPLY_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/db_apply.yml"
 
 export const run = (cmd, args, opts) => {
-  const r = spawnSync(cmd, args, { encoding: "utf-8", ...opts })
-  if (r.status !== 0)
-    throw new Error(`${cmd} failed: ${r.stderr || r.stdout || `exit ${r.status}`}`)
+  const { redact, ...spawn_opts } = opts || {}
+  const r = spawnSync(cmd, args, { encoding: "utf-8", ...spawn_opts })
+  if (r.status !== 0) {
+    let msg = r.stderr || r.stdout || `exit ${r.status}`
+    if (redact) for (const s of redact) msg = msg.replaceAll(s, "***")
+    throw new Error(`${cmd} failed: ${msg}`)
+  }
   return r.stdout
 }
 
@@ -26,7 +30,7 @@ export const notifyFeishu = async (title, lines) => {
 
 export const cloneSrvRepo = () => {
   const url = `https://oauth2:${GITCODE_TOKEN}@gitcode.com/${SRV_REPO}.git`
-  run("git", ["clone", "--depth=1", "-b", TARGET_BRANCH, url, "srv"])
+  run("git", ["clone", "--depth=1", "-b", TARGET_BRANCH, url, "srv"], { redact: [GITCODE_TOKEN] })
 }
 
 export { GITCODE_TOKEN }
