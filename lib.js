@@ -1,4 +1,6 @@
 import { spawnSync } from "child_process"
+import { resolve } from "path"
+import { pathToFileURL } from "url"
 import GITCODE_TOKEN from "./conf/GITCODE_TOKEN.js"
 import FEISHU_WEBHOOK from "./conf/FEISHU_WEBHOOK.js"
 
@@ -47,6 +49,9 @@ export const cloneSrvDev = () => cloneGitcode(SRV_REPO, DEV_BRANCH, "srv")
 export const cloneSrvDeploy = (env) => cloneGitcode(SRV_REPO, deployBranch(assertEnv(env)), "srv-deploy")
 export const cloneIConf = () => cloneGitcode(CONF_REPO, DEV_BRANCH, "iconf")
 
-export const tidbConf = async (env) => (await import("../iconf/" + assertEnv(env) + "/TIDB.js")).default
+export const tidbConf = async (env) => {
+  const p = resolve(process.cwd(), "iconf", assertEnv(env), "TIDB.js")
+  return (await import(pathToFileURL(p).href)).default
+}
 
 export { GITCODE_TOKEN }
