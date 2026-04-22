@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: target environment
+        description: target env
         required: true
         type: choice
         options: [alpha, prod]
