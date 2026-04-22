@@ -1,20 +1,26 @@
 #!/usr/bin/env bun
 
-import TIDB from "../conf/TIDB.js"
-import { run, notifyFeishu, cloneSrvRepo, DB_DIFF_ACTION_URL } from "../lib.js"
+import {
+  run, notifyFeishu, cloneSrvDeploy, cloneIConf,
+  tidbConf, assertEnv, DB_DIFF_ACTION_URL,
+} from "../lib.js"
 
-const buildDatabaseUrl = () => {
-  const { username, password, hostname, port, database, tls } = TIDB
-  return `mysql://${username}:${password}@${hostname}:${port}/${database}${tls ? "?tls=true" : ""}`
+const ENV = assertEnv(process.env.DEPLOY_ENV || "")
+
+const buildDatabaseUrl = (tidb) => {
+  const { username, password, hostname, port, database, tls } = tidb
+  return "mysql://" + username + ":" + password + "@" + hostname + ":" + port + "/" + database + (tls ? "?tls=true" : "")
 }
 
 const main = async () => {
-  cloneSrvRepo()
+  cloneSrvDeploy(ENV)
+  cloneIConf()
 
-  const env = { ...process.env, DATABASE_URL: buildDatabaseUrl() }
-  console.log("applying migrations...")
+  const tidb = await tidbConf(ENV),
+    env = { ...process.env, DATABASE_URL: buildDatabaseUrl(tidb) }
+  console.log("applying migrations (env=" + ENV + ")...")
 
-  const dbmate = (...args) => run("dbmate", ["--migrations-dir", "srv/migration/sql", ...args], { env, stdio: "inherit" })
+  const dbmate = (...args) => run("dbmate", ["--migrations-dir", "srv-deploy/migration/sql", ...args], { env, stdio: "inherit" })
 
   dbmate("--wait", "status")
   dbmate("--wait", "up")
@@ -22,9 +28,9 @@ const main = async () => {
 
   dbmate("status")
 
-  await notifyFeishu("✅ DB Migration 上线完成", [
+  await notifyFeishu("✅ DB Migration 上线完成 (" + ENV + ")", [
     "所有未应用的 migration 已执行成功。", "",
-    `db_diff Action: ${DB_DIFF_ACTION_URL}`,
+    "db_diff Action: " + DB_DIFF_ACTION_URL,
   ])
 }
 

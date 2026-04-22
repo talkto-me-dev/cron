@@ -5,10 +5,17 @@ env:
 
 on:
   workflow_dispatch:
+    inputs:
+      env:
+        description: target environment
+        required: true
+        type: choice
+        options: [alpha, prod]
 
 jobs:
   run:
     uses: ./.github/workflows/cron.yml
     with:
       name: db_diff
+      env: ${{ inputs.env }}
     secrets: inherit

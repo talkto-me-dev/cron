@@ -4,6 +4,10 @@ on:
       name:
         required: true
         type: string
+      env:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -26,6 +30,7 @@ jobs:
       - name: ${{inputs.name}}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
           sudo bash -c 'echo "StrictHostKeyChecking accept-new" >> /etc/ssh/ssh_config'
