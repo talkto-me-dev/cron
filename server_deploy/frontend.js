@@ -28,7 +28,7 @@ run("bash", [
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", [
   "-c",
-  "cd workdir/site && rm -f bun.lock && npm install --legacy-peer-deps --no-audit --no-fund && " + script,
+  "cd workdir/site && rm -f bun.lock && npm install --legacy-peer-deps --no-audit --no-fund && npm install zx --no-save --no-audit --no-fund && " + script,
 ], { stdio: "inherit" })
 
 process.exit()
