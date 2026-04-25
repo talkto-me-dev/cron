@@ -17,15 +17,15 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
-// bun i 后把 zx symlink 到 bun cache 祖先目录
-// 因为 @3-/zx 真实文件在 cache，运行时从 cache 向上找 zx，必须放到 cache 祖先路径
+// bun cache 里的 @3-/zx 加载后从其真实路径向上找依赖。
+// 把 site/node_modules 整个 symlink 到 bun cache 祖先目录，让所有依赖都能被找到。
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", ["-c", `
   set -ex
   cd workdir/site
   bun i
-  mkdir -p $HOME/.bun/install/node_modules
-  ln -sfn "$(realpath node_modules/zx)" $HOME/.bun/install/node_modules/zx
+  rm -rf $HOME/.bun/install/node_modules
+  ln -sfn "$(realpath node_modules)" $HOME/.bun/install/node_modules
   ${script}
 `], { stdio: "inherit" })
 
