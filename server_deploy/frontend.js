@@ -17,10 +17,16 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
+// install lib deps + run srv build to generate .gen/fn (site fn symlink target)
+run("bash", [
+  "-c",
+  "cd workdir/lib && bun i && cd ../srv && bun i && ./build.sh",
+], { stdio: "inherit" })
+
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", [
   "-c",
-  "cd workdir/lib && bun i && cd ../site && bun i && " + script,
+  "cd workdir/site && bun i && " + script,
 ], { stdio: "inherit" })
 
 process.exit()
