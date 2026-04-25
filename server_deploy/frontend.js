@@ -14,8 +14,12 @@ cloneFull("myaier/vibe", "dev", "workdir/site/vibe")
 cloneFull("myaier/static", "dev", "workdir/site/static")
 cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
+cloneFull("myaier/docker", "dev", "workdir/docker")
 
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
-run("bash", ["-c", "cd workdir/site && bun i && " + script], { stdio: "inherit" })
+run("bash", [
+  "-c",
+  "cd workdir/lib && bun i && cd ../site && bun i && " + script,
+], { stdio: "inherit" })
 
 process.exit()

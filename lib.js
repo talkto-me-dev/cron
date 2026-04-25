@@ -44,8 +44,16 @@ export const run = (cmd, args, opts) => {
   return r.stdout
 }
 
+export const actionRunUrl = () => {
+  const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env
+  if (!GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_RUN_ID) return ""
+  return GITHUB_SERVER_URL + "/" + GITHUB_REPOSITORY + "/actions/runs/" + GITHUB_RUN_ID
+}
+
 export const notifyFeishu = async (title, lines) => {
-  const text = title + "\n\n" + lines.join("\n")
+  const url = actionRunUrl()
+  const all = url ? [...lines, "", "Action: " + url] : lines
+  const text = title + "\n\n" + all.join("\n")
   const res = await fetch(FEISHU_WEBHOOK, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
