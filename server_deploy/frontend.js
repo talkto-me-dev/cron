@@ -20,10 +20,12 @@ cloneFull("myaier/docker", "dev", "workdir/docker")
 
 // 与 init.sh 一致：每个 package.json 跑 ncu -u + rm bun.lock + bun i
 // 然后在 srv 跑 build.sh 生成 .gen/fn（site fn symlink 目标）
+// site 需先把 @3-/zx 的 peerDep zx 提升为 direct dep（bun 不自动装 peer）
 run("bash", ["-c", `
 set -ex
 bun i -g npm-check-updates
 cd workdir
+node -e 'const f="site/package.json",p=require("./"+f);p.devDependencies.zx="^8";require("fs").writeFileSync(f,JSON.stringify(p,null,2))'
 for d in lib srv ai site site/vibe site/static; do
   if [ -f "$d/package.json" ]; then
     cd "$d"
@@ -33,7 +35,6 @@ for d in lib srv ai site site/vibe site/static; do
     cd - > /dev/null
   fi
 done
-cd site && bun add zx --no-save && cd ..
 cd srv && ./build.sh
 `], { stdio: "inherit" })
 
