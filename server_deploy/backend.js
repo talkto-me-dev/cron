@@ -44,12 +44,12 @@ const main = async () => {
 
   for (const sub of SUBS) {
     const br = targetBranch(sub)
-    sshLive(
+    const cmd =
       "cd " + subDir(sub) +
-        " && git fetch origin " + br +
-        " && git checkout -B " + br + " FETCH_HEAD" +
-        " && if [ -f package.json ]; then bun i; fi",
-    )
+      " && git fetch origin " + br +
+      " && git checkout -B " + br + " FETCH_HEAD" +
+      " && if [ -f package.json ]; then bun i; fi"
+    sshLive("bash -c " + JSON.stringify(cmd))
   }
 
   sshLive("systemctl restart " + SERVICE)
