@@ -12,6 +12,7 @@ const cloneFull = (repo, branch, path) => {
 cloneFull("myaier/site", "dev", "workdir/site")
 cloneFull("myaier/vibe", "dev", "workdir/site/vibe")
 cloneFull("myaier/static", "dev", "workdir/site/static")
+cloneFull("myaier/srv", "dev", "workdir/srv")
 cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
