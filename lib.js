@@ -14,7 +14,8 @@ export const SRV_REPO = "myaier/srv",
   DEPLOY_BRANCH = "deploy",
   GITCODE_API = "https://api.gitcode.com/api/v5",
   DB_APPLY_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/db_apply.yml",
-  DEPLOY_PIPELINE_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/deploy_pipeline.yml"
+  DEPLOY_PIPELINE_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/deploy_pipeline.yml",
+  SERVER_DEPLOY_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/server_deploy.yml"
 
 export const ENVS = ["alpha", "prod"]
 

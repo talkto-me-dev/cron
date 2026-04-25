@@ -14,6 +14,7 @@ import {
   SRV_REPO,
   SRV_GITHUB_REPO,
   DEPLOY_PIPELINE_ACTION_URL,
+  SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
 import { schemaDiff, migrationName, stripNonTableDdl } from "./utils.js"
 
@@ -135,7 +136,9 @@ const main = async () => {
     console.log("schema 无差异，dispatch deploy")
     dispatchWorkflow("server_deploy.yml", { env: ENV })
     await notifyFeishu("ℹ️ 无 SQL 变更，开始部署 (" + ENV + ")", [
-      "schema 一致，已触发 deploy。",
+      "schema 一致，已触发 server_deploy。",
+      "",
+      SERVER_DEPLOY_ACTION_URL,
     ])
     return
   }

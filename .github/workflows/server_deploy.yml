@@ -13,9 +13,81 @@ on:
         options: [alpha, prod]
 
 jobs:
-  run:
-    uses: ./.github/workflows/cron.yml
-    with:
-      name: deploy
-      env: ${{ inputs.env }}
-    secrets: inherit
+  backend:
+    runs-on: ubuntu-latest
+    outputs:
+      old_hashes: ${{ steps.run.outputs.old_hashes }}
+      new_hashes: ${{ steps.run.outputs.new_hashes }}
+    steps:
+      - name: checkout private conf
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/conf
+          token: ${{ secrets.GH_PAT }}
+          path: conf
+      - uses: actions/checkout@v5
+        with:
+          path: cron
+      - uses: oven-sh/setup-bun@v2
+      - id: run
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          DEPLOY_ENV: ${{ inputs.env }}
+        run: |
+          set -ex
+          cd cron
+          ln -s ../conf .
+          cd server_deploy
+          ./backend.js
+
+  frontend:
+    needs: backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout private conf
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/conf
+          token: ${{ secrets.GH_PAT }}
+          path: conf
+      - uses: actions/checkout@v5
+        with:
+          path: cron
+      - uses: oven-sh/setup-bun@v2
+      - env:
+          DEPLOY_ENV: ${{ inputs.env }}
+        run: |
+          set -ex
+          cd cron
+          ln -s ../conf .
+          cd server_deploy
+          ./frontend.js
+
+  notify:
+    needs: [backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout private conf
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/conf
+          token: ${{ secrets.GH_PAT }}
+          path: conf
+      - uses: actions/checkout@v5
+        with:
+          path: cron
+      - uses: oven-sh/setup-bun@v2
+      - env:
+          DEPLOY_ENV: ${{ inputs.env }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          OLD_HASHES: ${{ needs.backend.outputs.old_hashes }}
+          NEW_HASHES: ${{ needs.backend.outputs.new_hashes }}
+        run: |
+          set -ex
+          cd cron
+          ln -s ../conf .
+          cd server_deploy
+          ./notify.js

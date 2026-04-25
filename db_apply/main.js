@@ -10,6 +10,7 @@ import {
   dbBranch,
   dispatchWorkflow,
   DB_APPLY_ACTION_URL,
+  SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
@@ -50,7 +51,9 @@ const main = async () => {
   dispatchWorkflow("server_deploy.yml", { env: ENV })
 
   await notifyFeishu("✅ DB Migration 上线完成 (" + ENV + ")", [
-    "所有未应用的 migration 已执行成功，已触发 deploy。",
+    "所有未应用的 migration 已执行成功，已触发 server_deploy。",
+    "",
+    SERVER_DEPLOY_ACTION_URL,
   ])
 }
 
