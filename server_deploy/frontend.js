@@ -19,6 +19,7 @@ cloneFull("myaier/docker", "dev", "workdir/docker")
 
 // bun cache 里的 @3-/zx 加载后从其真实路径向上找依赖。
 // 把 site/node_modules 整个 symlink 到 bun cache 祖先目录，让所有依赖都能被找到。
+// 先跑 dev build 生成 dist/code（i18n 扫描需要），再跑 prod dist。
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", ["-c", `
   set -ex
@@ -26,6 +27,7 @@ run("bash", ["-c", `
   bun i
   rm -rf $HOME/.bun/install/node_modules
   ln -sfn "$(realpath node_modules)" $HOME/.bun/install/node_modules
+  ./build.sh
   ${script}
 `], { stdio: "inherit" })
 
