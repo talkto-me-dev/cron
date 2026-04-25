@@ -13,6 +13,7 @@ cloneFull("myaier/site", "dev", "workdir/site")
 cloneFull("myaier/vibe", "dev", "workdir/site/vibe")
 cloneFull("myaier/static", "dev", "workdir/site/static")
 cloneFull("myaier/srv", "dev", "workdir/srv")
+cloneFull("myaier/ai", "dev", "workdir/ai")
 cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
@@ -27,6 +28,7 @@ run("bash", ["-c", `
   bun i
   rm -rf $HOME/.bun/install/node_modules
   ln -sfn "$(realpath node_modules)" $HOME/.bun/install/node_modules
+  cd ../srv && bun i && ./build.sh && cd ../site
   ./build.sh
   ${script}
 `], { stdio: "inherit" })
