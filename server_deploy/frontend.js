@@ -17,10 +17,9 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
-// 用 npm 安装 site（避开 bun cache 的 peer-dep 解析 bug），dist.js 仍由 bun 跑
-const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
+// 用 npm 装 site，用 node 跑 dist.js（bun runtime 缓存覆盖 node_modules，导致 @3-/zx 找不到 zx）
 run("bash", ["-c",
-  "cd workdir/site && rm -f bun.lock && npm install --no-audit --no-fund && npm install zx --no-save --no-audit --no-fund && " + script,
+  "cd workdir/site && rm -f bun.lock && npm install --no-audit --no-fund && CONF=" + ENV + " node ./sh/dist.js",
 ], { stdio: "inherit" })
 
 process.exit()
