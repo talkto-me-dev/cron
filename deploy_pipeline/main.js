@@ -36,10 +36,8 @@ const dumpOnlineSchema = (tidb) =>
 const sync = () => {
   cloneSrvGithub("dev", "srv")
   const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] })
-  // 用无 token URL，配置 gitcode.com 的 credential helper（token 从 env 读取，避免 fetch/push stderr 泄漏）
-  git("remote", "add", "gitcode", "https://gitcode.com/" + SRV_REPO + ".git")
-  git("config", "credential.https://gitcode.com.helper",
-    "!f() { echo username=oauth2; echo password=$GITCODE_TOKEN; }; f")
+  const gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
+  git("remote", "add", "gitcode", gitcode_url)
   git("fetch", "gitcode", "dev")
   git("push", "origin", "+gitcode/dev:dev")
   git("push", "origin", "+gitcode/dev:deploy")

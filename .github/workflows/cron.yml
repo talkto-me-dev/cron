@@ -31,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
           DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
