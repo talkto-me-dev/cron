@@ -49,9 +49,10 @@ const writeOutput = (key, value) => {
 const remoteBash = (cmd) => "bash -c " + JSON.stringify(cmd)
 
 const main = async () => {
-  // 先 fetch 拿到 origin/<targetBranch> 引用，再取 hash
+  // 先 fetch 强制更新 origin/<targetBranch> remote-tracking ref（绕开 single-branch refspec），再取 hash
   for (const sub of SUBS) {
-    sshLive("cd " + subDir(sub) + " && git fetch -q origin " + targetBranch(sub))
+    const br = targetBranch(sub)
+    sshLive("cd " + subDir(sub) + " && git fetch -q origin +" + br + ":refs/remotes/origin/" + br)
   }
   const old_hashes = captureHashes()
   console.log("old hashes:", old_hashes)
@@ -59,6 +60,7 @@ const main = async () => {
 
   for (const sub of SUBS) {
     const br = targetBranch(sub)
+    // origin/<br> 已由前面的 fetch 强制更新；checkout -B 创建/重置本地分支
     sshLive(
       remoteBash(
         "cd " + subDir(sub) +
