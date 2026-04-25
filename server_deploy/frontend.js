@@ -17,14 +17,16 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
-// 用 npm 装 site (会自动装 peer dep zx)，用 node 跑 dist.js
-// bun runtime 直接从其 install cache 解析包，跳过 node_modules，导致 peer-dep 找不到
+// bun i 后把 zx symlink 到 bun cache 祖先目录
+// 因为 @3-/zx 真实文件在 cache，运行时从 cache 向上找 zx，必须放到 cache 祖先路径
+const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", ["-c", `
   set -ex
   cd workdir/site
-  rm -f bun.lock
-  npm install --no-audit --no-fund
-  CONF=${ENV} node --experimental-vm-modules ./sh/dist.js
+  bun i
+  mkdir -p $HOME/.bun/install/node_modules
+  ln -sfn "$(realpath node_modules/zx)" $HOME/.bun/install/node_modules/zx
+  ${script}
 `], { stdio: "inherit" })
 
 process.exit()
