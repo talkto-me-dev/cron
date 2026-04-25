@@ -1,6 +1,6 @@
 #! /usr/bin/env bun
 import { test, expect } from "vitest"
-import { migrationName } from "../db_diff/utils.js"
+import { migrationName } from "../deploy_pipeline/utils.js"
 
 test("migrationName generates correct filenames", () => {
   const fixedDate = new Date("2026-03-29T04:30:40.000Z")

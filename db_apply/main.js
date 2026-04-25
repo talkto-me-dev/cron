@@ -1,36 +1,56 @@
 #!/usr/bin/env bun
 
 import {
-  run, notifyFeishu, cloneSrvDeploy, cloneIConf,
-  tidbConf, assertEnv, DB_DIFF_ACTION_URL,
+  run,
+  notifyFeishu,
+  cloneSrvGithub,
+  cloneIConf,
+  tidbConf,
+  assertEnv,
+  dbBranch,
+  dispatchWorkflow,
+  DB_APPLY_ACTION_URL,
 } from "../lib.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
 const buildDatabaseUrl = (tidb) => {
   const { username, password, hostname, port, database, tls } = tidb
-  return "mysql://" + username + ":" + password + "@" + hostname + ":" + port + "/" + database + (tls ? "?tls=true" : "")
+  return (
+    "mysql://" + username + ":" + password + "@" + hostname + ":" + port + "/" + database +
+    (tls ? "?tls=true" : "")
+  )
 }
 
 const main = async () => {
-  cloneSrvDeploy(ENV)
+  cloneSrvGithub(dbBranch(ENV), "srv-db")
   cloneIConf()
 
   const tidb = await tidbConf(ENV),
     env = { ...process.env, DATABASE_URL: buildDatabaseUrl(tidb) }
+
+  const dbmate = (...args) =>
+    run("dbmate", ["--migrations-dir", "srv-db/migration/sql", ...args], { env, stdio: "inherit" })
+
   console.log("applying migrations (env=" + ENV + ")...")
+  try {
+    dbmate("--wait", "status")
+    dbmate("--wait", "up")
+    dbmate("status")
+  } catch (e) {
+    await notifyFeishu("❌ DB Migration 上线失败 (" + ENV + ")", [
+      e.message,
+      "",
+      "Action: " + DB_APPLY_ACTION_URL,
+    ])
+    throw e
+  }
 
-  const dbmate = (...args) => run("dbmate", ["--migrations-dir", "srv-deploy/migration/sql", ...args], { env, stdio: "inherit" })
-
-  dbmate("--wait", "status")
-  dbmate("--wait", "up")
-  console.log("migrations applied")
-
-  dbmate("status")
+  console.log("migrations applied, dispatching deploy")
+  dispatchWorkflow("deploy.yml", { env: ENV })
 
   await notifyFeishu("✅ DB Migration 上线完成 (" + ENV + ")", [
-    "所有未应用的 migration 已执行成功。", "",
-    "db_diff Action: " + DB_DIFF_ACTION_URL,
+    "所有未应用的 migration 已执行成功，已触发 deploy。",
   ])
 }
 

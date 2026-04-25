@@ -29,19 +29,14 @@ jobs:
 
       - name: ${{inputs.name}}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
           DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
           sudo bash -c 'echo "StrictHostKeyChecking accept-new" >> /etc/ssh/ssh_config'
           git config --global user.name github-action
           git config --global user.email action@github.com
-          # rm -rf ~/.ssh
-          # cd conf
-          # chmod 700 ssh
-          # ln -s $(pwd)/ssh ~/.ssh
-          # chmod 600 ssh/*
-          # cd ..
           cd cron
           ln -s ../conf .
           cd ${{inputs.name}}

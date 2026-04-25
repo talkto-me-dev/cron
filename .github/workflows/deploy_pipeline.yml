@@ -1,4 +1,4 @@
-name: db_diff
+name: deploy_pipeline
 
 env:
   TZ: Asia/Shanghai
@@ -16,6 +16,6 @@ jobs:
   run:
     uses: ./.github/workflows/cron.yml
     with:
-      name: db_diff
+      name: deploy_pipeline
       env: ${{ inputs.env }}
     secrets: inherit

@@ -1,0 +1,21 @@
+name: deploy
+
+env:
+  TZ: Asia/Shanghai
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: target env
+        required: true
+        type: choice
+        options: [alpha, prod]
+
+jobs:
+  run:
+    uses: ./.github/workflows/cron.yml
+    with:
+      name: deploy
+      env: ${{ inputs.env }}
+    secrets: inherit
