@@ -1,4 +1,4 @@
-name: db_apply
+name: db apply
 
 env:
   TZ: Asia/Shanghai
