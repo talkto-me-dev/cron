@@ -18,17 +18,25 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
-// install lib deps + run srv build to generate .gen/fn (site fn symlink target)
-run("bash", [
-  "-c",
-  "cd workdir/lib && bun i && cd ../srv && bun i && ./build.sh",
-], { stdio: "inherit" })
+// 与 init.sh 一致：每个 package.json 跑 ncu -u + rm bun.lock + bun i
+// 然后在 srv 跑 build.sh 生成 .gen/fn（site fn symlink 目标）
+run("bash", ["-c", `
+set -ex
+bun i -g npm-check-updates
+cd workdir
+for d in lib srv ai site site/vibe site/static; do
+  if [ -f "$d/package.json" ]; then
+    cd "$d"
+    ncu -u || true
+    rm -f bun.lock
+    bun i
+    cd - > /dev/null
+  fi
+done
+cd srv && ./build.sh
+`], { stdio: "inherit" })
 
-// site: use npm install (bun cache hardlinks break @3-/zx peer-dep resolution)
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
-run("bash", [
-  "-c",
-  "cd workdir/site && rm -f bun.lock && npm install --legacy-peer-deps --no-audit --no-fund && npm install zx --no-save --no-audit --no-fund && " + script,
-], { stdio: "inherit" })
+run("bash", ["-c", "cd workdir/site && " + script], { stdio: "inherit" })
 
 process.exit()
