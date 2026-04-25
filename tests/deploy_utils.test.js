@@ -1,5 +1,5 @@
 import { test, expect } from "vitest"
-import { SUBS, targetBranch, subDir, healthUrl, fmtHashes } from "../deploy/utils.js"
+import { SUBS, targetBranch, subDir, healthUrl, fmtHashes } from "../server_deploy/utils.js"
 
 test("SUBS lib srv conf 顺序固定", () => {
   expect(SUBS).toEqual(["lib", "srv", "conf"])
