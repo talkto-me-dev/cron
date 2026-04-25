@@ -36,6 +36,8 @@ jobs:
           DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
+          git config --global user.name github-action
+          git config --global user.email action@github.com
           cd cron
           ln -s ../conf .
           cd server_deploy
@@ -59,6 +61,8 @@ jobs:
           DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
+          git config --global user.name github-action
+          git config --global user.email action@github.com
           cd cron
           ln -s ../conf .
           cd server_deploy
@@ -87,6 +91,8 @@ jobs:
           NEW_HASHES: ${{ needs.backend.outputs.new_hashes }}
         run: |
           set -ex
+          git config --global user.name github-action
+          git config --global user.email action@github.com
           cd cron
           ln -s ../conf .
           cd server_deploy
