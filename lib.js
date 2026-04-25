@@ -46,11 +46,13 @@ export const run = (cmd, args, opts) => {
 
 export const notifyFeishu = async (title, lines) => {
   const text = title + "\n\n" + lines.join("\n")
-  await fetch(FEISHU_WEBHOOK, {
+  const res = await fetch(FEISHU_WEBHOOK, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ msg_type: "text", content: { text } }),
   })
+  const body = await res.text()
+  console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
 }
 
 const cloneGitcode = (repo, branch, path) => {
