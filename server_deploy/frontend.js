@@ -31,7 +31,7 @@ for d in lib srv ai site site/vibe site/static; do
     cd "$d"
     ncu -u || true
     rm -f bun.lock
-    bun i
+    bun install --linker=hoisted --no-cache
     cd - > /dev/null
   fi
 done
