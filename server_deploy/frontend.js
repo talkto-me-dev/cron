@@ -24,11 +24,11 @@ run("bash", [
   "cd workdir/lib && bun i && cd ../srv && bun i && ./build.sh",
 ], { stdio: "inherit" })
 
-// site: rm lockfile + force backend=clonefile to break out of bun cache hardlink that breaks peer-dep resolution
+// site: use npm install (bun cache hardlinks break @3-/zx peer-dep resolution)
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", [
   "-c",
-  "cd workdir/site && rm -f bun.lock && bun install --backend=clonefile && " + script,
+  "cd workdir/site && rm -f bun.lock && npm install --legacy-peer-deps --no-audit --no-fund && " + script,
 ], { stdio: "inherit" })
 
 process.exit()
