@@ -58,7 +58,7 @@ export const actionRunUrl = () => {
 
 export const notifyFeishu = async (title, lines) => {
   const url = actionRunUrl(),
-    all = url ? [...lines, "", "Action: " + url] : lines,
+    all = url ? [...lines, "", "当前 action: " + url] : lines,
     text = title + "\n\n" + all.join("\n"),
     res = await fetch(FEISHU_WEBHOOK, {
       method: "POST",
