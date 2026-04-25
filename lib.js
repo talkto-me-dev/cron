@@ -63,9 +63,22 @@ export const notifyFeishu = async (title, lines) => {
   console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
 }
 
+// 把仓库 origin URL 改成无 token 版本，token 通过 credential helper 从 env 读取，
+// 避免后续 git fetch/push 把 token URL 打到 stderr（Action log 泄漏）
+const setupRepoAuth = (path, host, repo, env_var) => {
+  const clean = "https://" + host + "/" + repo + ".git"
+  run("git", ["-C", path, "remote", "set-url", "origin", clean])
+  run("git", [
+    "-C", path,
+    "config", "credential.https://" + host + ".helper",
+    "!f() { echo username=oauth2; echo password=$" + env_var + "; }; f",
+  ])
+}
+
 const cloneGitcode = (repo, branch, path) => {
   const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"
   run("git", ["clone", "--depth=1", "-b", branch, url, path], { redact: [GITCODE_TOKEN] })
+  setupRepoAuth(path, "gitcode.com", repo, "GITCODE_TOKEN")
 }
 
 export const cloneSrvDev = () => cloneGitcode(SRV_REPO, DEV_BRANCH, "srv")
@@ -76,9 +89,13 @@ const cloneGithub = (repo, branch, path) => {
   const t = ghPat(),
     url = "https://oauth2:" + t + "@github.com/" + repo + ".git"
   run("git", ["clone", "--depth=1", "-b", branch, url, path], { redact: [t] })
+  setupRepoAuth(path, "github.com", repo, "GH_PAT")
 }
 
 export const cloneSrvGithub = (branch, path) => cloneGithub(SRV_GITHUB_REPO, branch, path)
+
+// 让所有 spawn 的子进程能拿到 GITCODE_TOKEN（credential helper 通过 $GITCODE_TOKEN 读取）
+process.env.GITCODE_TOKEN = GITCODE_TOKEN
 
 const SSH_DIR = join(ROOT, "conf/ssh"),
   SSH_CONFIG = join(SSH_DIR, "ssh_config"),

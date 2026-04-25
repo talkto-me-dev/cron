@@ -4,9 +4,18 @@ import { run, assertEnv, GITCODE_TOKEN } from "../lib.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
+// clone 用带 token URL 鉴权（默认 stdio：捕获，不回显），随后改为无 token URL +
+// credential helper（token 从 env 读取），避免 git 后续操作把 token 打到 stderr
 const cloneFull = (repo, branch, path) => {
   const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"
-  run("git", ["clone", "-b", branch, url, path], { redact: [GITCODE_TOKEN], stdio: "inherit" })
+  const clean = "https://gitcode.com/" + repo + ".git"
+  run("git", ["clone", "-b", branch, url, path], { redact: [GITCODE_TOKEN] })
+  run("git", ["-C", path, "remote", "set-url", "origin", clean])
+  run("git", [
+    "-C", path,
+    "config", "credential.https://gitcode.com.helper",
+    "!f() { echo username=oauth2; echo password=$GITCODE_TOKEN; }; f",
+  ])
 }
 
 cloneFull("myaier/site", "dev", "workdir/site")
