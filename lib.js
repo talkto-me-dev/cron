@@ -3,11 +3,11 @@ import { resolve, join } from "path"
 import { chmodSync } from "fs"
 import { pathToFileURL } from "url"
 import ROOT from "./ROOT.js"
-import GITCODE_TOKEN_FILE from "./conf/GITCODE_TOKEN.js"
 import FEISHU_WEBHOOK from "./conf/FEISHU_WEBHOOK.js"
 
-// 优先用 env（Actions 注入，自动 redact）；本地直跑兜底用 conf JS
-const GITCODE_TOKEN = process.env.GITCODE_TOKEN || GITCODE_TOKEN_FILE
+// GITCODE_TOKEN 由 Actions secret 注入到 env（自动 redact）；本地直跑需 export
+const GITCODE_TOKEN = process.env.GITCODE_TOKEN
+if (!GITCODE_TOKEN) throw new Error("GITCODE_TOKEN env not set")
 
 export const SRV_REPO = "myaier/srv",
   SRV_GITHUB_REPO = "talkto-me-dev/srv",
