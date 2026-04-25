@@ -133,7 +133,7 @@ const main = async () => {
 
   if (!diff_sql) {
     console.log("schema 无差异，dispatch deploy")
-    dispatchWorkflow("deploy.yml", { env: ENV })
+    dispatchWorkflow("server_deploy.yml", { env: ENV })
     await notifyFeishu("ℹ️ 无 SQL 变更，开始部署 (" + ENV + ")", [
       "schema 一致，已触发 deploy。",
     ])
