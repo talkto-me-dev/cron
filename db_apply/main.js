@@ -9,7 +9,6 @@ import {
   assertEnv,
   dbBranch,
   dispatchWorkflow,
-  DB_APPLY_ACTION_URL,
   SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
 
@@ -39,11 +38,7 @@ const main = async () => {
     dbmate("--wait", "up")
     dbmate("status")
   } catch (e) {
-    await notifyFeishu("❌ DB Migration 上线失败 (" + ENV + ")", [
-      e.message,
-      "",
-      "Action: " + DB_APPLY_ACTION_URL,
-    ])
+    await notifyFeishu("❌ DB Migration 上线失败 (" + ENV + ")", [e.message])
     throw e
   }
 
@@ -51,9 +46,7 @@ const main = async () => {
   dispatchWorkflow("server_deploy.yml", { env: ENV })
 
   await notifyFeishu("✅ DB Migration 上线完成 (" + ENV + ")", [
-    "所有未应用的 migration 已执行成功，已触发 server_deploy。",
-    "",
-    SERVER_DEPLOY_ACTION_URL,
+    "已触发 server_deploy: " + SERVER_DEPLOY_ACTION_URL,
   ])
 }
 

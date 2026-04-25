@@ -13,7 +13,6 @@ import {
   GITCODE_TOKEN,
   SRV_REPO,
   SRV_GITHUB_REPO,
-  DEPLOY_PIPELINE_ACTION_URL,
   SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
 import { schemaDiff, migrationName, stripNonTableDdl } from "./utils.js"
@@ -104,11 +103,7 @@ const main = async () => {
   try {
     online_clean = stripNonTableDdl(dumpOnlineSchema(tidb))
   } catch (e) {
-    await notifyFeishu("❌ mysqldump 失败 (" + ENV + ")", [
-      e.message,
-      "",
-      DEPLOY_PIPELINE_ACTION_URL,
-    ])
+    await notifyFeishu("❌ mysqldump 失败 (" + ENV + ")", [e.message])
     throw e
   }
   writeFileSync("online_schema.sql", online_clean)
@@ -124,11 +119,7 @@ const main = async () => {
   try {
     diff_sql = schemaDiff("online_schema.sql", "desired_schema.sql")
   } catch (e) {
-    await notifyFeishu("❌ mysqldef 失败 (" + ENV + ")", [
-      e.message,
-      "",
-      DEPLOY_PIPELINE_ACTION_URL,
-    ])
+    await notifyFeishu("❌ mysqldef 失败 (" + ENV + ")", [e.message])
     throw e
   }
 
@@ -136,9 +127,7 @@ const main = async () => {
     console.log("schema 无差异，dispatch deploy")
     dispatchWorkflow("server_deploy.yml", { env: ENV })
     await notifyFeishu("ℹ️ 无 SQL 变更，开始部署 (" + ENV + ")", [
-      "schema 一致，已触发 server_deploy。",
-      "",
-      SERVER_DEPLOY_ACTION_URL,
+      "schema 一致，已触发 server_deploy: " + SERVER_DEPLOY_ACTION_URL,
     ])
     return
   }
@@ -157,11 +146,10 @@ const main = async () => {
   const summary = diff_sql.length > 500 ? diff_sql.slice(0, 500) + "\n..." : diff_sql
   await notifyFeishu("📋 DB Migration PR 就绪 (" + ENV + ")", [
     "PR: " + pr_url,
+    "合并后触发: " + SERVER_DEPLOY_ACTION_URL,
     "",
     "Diff SQL:",
     summary,
-    "",
-    "Review 并 merge PR 后，relay 自动触发 db_apply。",
   ])
 }
 
