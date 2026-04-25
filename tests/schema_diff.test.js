@@ -19,16 +19,22 @@ test("schemaDiff outputs empty for identical schemas", () => {
   expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("")
 })
 
-test("schemaDiff outputs DROP TABLE when target table missing in desired", () => {
+test("schemaDiff 默认禁用 DROP（漏写表不会生成 DROP TABLE）", () => {
   writeFileSync("__test_online.sql", "CREATE TABLE a (id int);\nCREATE TABLE b (id int);")
   writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
-  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("DROP TABLE `b`;")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("")
 })
 
-test("schemaDiff outputs DROP COLUMN when target column missing in desired", () => {
+test("schemaDiff enableDrop=true 时输出 DROP TABLE", () => {
+  writeFileSync("__test_online.sql", "CREATE TABLE a (id int);\nCREATE TABLE b (id int);")
+  writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql", { enableDrop: true })).toBe("DROP TABLE `b`;")
+})
+
+test("schemaDiff enableDrop=true 时输出 DROP COLUMN", () => {
   writeFileSync("__test_online.sql", "CREATE TABLE a (id int, name varchar(20));")
   writeFileSync("__test_desired.sql", "CREATE TABLE a (id int);")
-  expect(schemaDiff("__test_online.sql", "__test_desired.sql")).toBe("ALTER TABLE `a` DROP COLUMN `name`;")
+  expect(schemaDiff("__test_online.sql", "__test_desired.sql", { enableDrop: true })).toBe("ALTER TABLE `a` DROP COLUMN `name`;")
 })
 
 test("schemaDiff outputs ADD COLUMN when new column added to desired", () => {

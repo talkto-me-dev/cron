@@ -7,10 +7,16 @@ export const stripNonTableDdl = (sql) =>
     .filter((l) => !/^\s*(CREATE\s+DATABASE|USE\s+|DROP\s+DATABASE)/i.test(l))
     .join("\n")
 
-export const schemaDiff = (online_file, desired_file) => {
+// 默认禁用 DROP，避免 tidb.sql 漏写一张表导致生产 DROP TABLE。
+// 显式删表需在 srv/tidb.sql 编辑后通过 SCHEMA_DIFF_ENABLE_DROP=1 启用。
+export const schemaDiff = (online_file, desired_file, opts) => {
+  const enable_drop = opts?.enableDrop ?? process.env.SCHEMA_DIFF_ENABLE_DROP === "1"
+  const args = []
+  if (enable_drop) args.push("--enable-drop")
+  args.push(online_file)
   const result = spawnSync(
     "mysqldef",
-    ["--enable-drop", online_file],
+    args,
     { input: readFileSync(desired_file), encoding: "utf-8" },
   )
   if (result.error) throw new Error("mysqldef spawn failed: " + result.error.message)

@@ -11,14 +11,22 @@ const subDir = (sub) => _subDir(ENV, sub)
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
 const sshCap = (cmd) => ssh("c1", cmd).trim()
 
+// 取目标分支的 tip（origin/<targetBranch>）而非当前 HEAD，避免首次部署时
+// 服务器还停在 dev 分支导致 old/new hash 错位（dev tip vs deploy tip）
 const captureHashes = () => {
   const r = {}
-  for (const sub of SUBS) r[sub] = sshCap("cd " + subDir(sub) + " && git rev-parse HEAD")
+  for (const sub of SUBS) {
+    const br = targetBranch(sub)
+    r[sub] = sshCap("cd " + subDir(sub) + " && git rev-parse origin/" + br)
+  }
   return r
 }
 
+const PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12)
+const PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000)
+
 const httpProbe = async () => {
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < PROBE_RETRIES; i++) {
     try {
       const res = await fetch(HEALTH_URL)
       if (res.status >= 200 && res.status < 400) return true
@@ -26,7 +34,7 @@ const httpProbe = async () => {
     } catch (e) {
       console.log("probe " + (i + 1) + ": " + e.message)
     }
-    await new Promise((r) => setTimeout(r, 3000))
+    await new Promise((r) => setTimeout(r, PROBE_INTERVAL_MS))
   }
   return false
 }
@@ -37,19 +45,27 @@ const writeOutput = (key, value) => {
   appendFileSync(f, key + "=" + JSON.stringify(value) + "\n")
 }
 
+// 远端命令含 if/then/fi，用 bash -c 强制走 bash（c1 默认 shell 是 fish，不识别 POSIX 函数）
+const remoteBash = (cmd) => "bash -c " + JSON.stringify(cmd)
+
 const main = async () => {
+  // 先 fetch 拿到 origin/<targetBranch> 引用，再取 hash
+  for (const sub of SUBS) {
+    sshLive("cd " + subDir(sub) + " && git fetch -q origin " + targetBranch(sub))
+  }
   const old_hashes = captureHashes()
   console.log("old hashes:", old_hashes)
   writeOutput("old_hashes", old_hashes)
 
   for (const sub of SUBS) {
     const br = targetBranch(sub)
-    const cmd =
-      "cd " + subDir(sub) +
-      " && git fetch origin " + br +
-      " && git checkout -B " + br + " FETCH_HEAD" +
-      " && if [ -f package.json ]; then bun i; fi"
-    sshLive("bash -c " + JSON.stringify(cmd))
+    sshLive(
+      remoteBash(
+        "cd " + subDir(sub) +
+        " && git checkout -q -B " + br + " origin/" + br +
+        " && if [ -f package.json ]; then bun i; fi",
+      ),
+    )
   }
 
   sshLive("systemctl restart " + SERVICE)

@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 
 import { writeFileSync, readFileSync, existsSync } from "fs"
+import { randomBytes } from "crypto"
 import {
   run,
   notifyFeishu,
-  cloneSrvGithub,
+  cloneSrvFromGithub,
   cloneIConf,
   tidbConf,
   assertEnv,
@@ -33,15 +34,16 @@ const dumpOnlineSchema = (tidb) =>
   )
 
 const sync = () => {
-  cloneSrvGithub("dev", "srv")
+  cloneSrvFromGithub("dev", "srv")
   const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] })
   const gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
   git("remote", "add", "gitcode", gitcode_url)
-  git("fetch", "gitcode", "dev")
-  git("push", "origin", "+gitcode/dev:dev")
-  git("push", "origin", "+gitcode/dev:deploy")
-  git("push", "gitcode", "+gitcode/dev:deploy")
-  git("reset", "--hard", "gitcode/dev")
+  git("fetch", "-q", "gitcode", "dev")
+  // 强推：deploy 是受控分支，永远等于 dev tip；任何手工热修都会被覆盖
+  git("push", "-q", "origin", "+gitcode/dev:dev")
+  git("push", "-q", "origin", "+gitcode/dev:deploy")
+  git("push", "-q", "gitcode", "+gitcode/dev:deploy")
+  git("reset", "-q", "--hard", "gitcode/dev")
 }
 
 const closeOpenPr = () => {
@@ -72,10 +74,10 @@ const writeMigration = (diff_sql) => {
 
 const pushAutoBranch = (branch, name) => {
   const git = (...args) => run("git", args, { cwd: "srv-db" })
-  git("checkout", "-b", branch)
+  git("checkout", "-q", "-b", branch)
   git("add", "migration/sql/")
-  git("commit", "-mauto(" + ENV + "): " + name)
-  git("push", "origin", branch)
+  git("commit", "-q", "-mauto(" + ENV + "): " + name)
+  git("push", "-q", "origin", branch)
 }
 
 const createPr = (branch, name, diff_sql) => {
@@ -92,9 +94,17 @@ const createPr = (branch, name, diff_sql) => {
 }
 
 const main = async () => {
-  sync()
+  try {
+    sync()
+  } catch (e) {
+    await notifyFeishu("❌ 代码同步失败 (" + ENV + ")", [
+      "deploy_pipeline 同步阶段出错，未触发后续部署。",
+      e.message,
+    ])
+    throw e
+  }
 
-  cloneSrvGithub(dbBranch(ENV), "srv-db")
+  cloneSrvFromGithub(dbBranch(ENV), "srv-db")
   cloneIConf()
 
   const tidb = await tidbConf(ENV)
@@ -137,7 +147,8 @@ const main = async () => {
   closeOpenPr()
 
   const name = migrationName(diff_sql),
-    branch = "auto/db_diff-" + ENV + "-" + name.slice(0, 14)
+    suffix = randomBytes(3).toString("hex"),
+    branch = "auto/db_diff-" + ENV + "-" + name.slice(0, 14) + "-" + suffix
   writeMigration(diff_sql)
   pushAutoBranch(branch, name)
   const pr_url = createPr(branch, name, diff_sql)

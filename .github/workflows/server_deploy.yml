@@ -12,6 +12,10 @@ on:
         type: choice
         options: [alpha, prod]
 
+concurrency:
+  group: server-deploy-${{ inputs.env }}
+  cancel-in-progress: false
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -19,78 +23,40 @@ jobs:
       old_hashes: ${{ steps.run.outputs.old_hashes }}
       new_hashes: ${{ steps.run.outputs.new_hashes }}
     steps:
-      - name: checkout private conf
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository_owner }}/conf
-          token: ${{ secrets.GH_PAT }}
-          path: conf
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
         with:
-          path: cron
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.11
+          gh_pat: ${{ secrets.GH_PAT }}
       - id: run
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           GH_PAT: ${{ secrets.GH_PAT }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
           DEPLOY_ENV: ${{ inputs.env }}
-        run: |
-          set -ex
-          git config --global user.name github-action
-          git config --global user.email action@github.com
-          cd cron
-          ln -s ../conf .
-          cd server_deploy
-          ./backend.js
+        run: cd cron/server_deploy && ./backend.js
 
   frontend:
     needs: backend
     runs-on: ubuntu-latest
     steps:
-      - name: checkout private conf
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository_owner }}/conf
-          token: ${{ secrets.GH_PAT }}
-          path: conf
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
         with:
-          path: cron
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.11
+          gh_pat: ${{ secrets.GH_PAT }}
       - env:
           DEPLOY_ENV: ${{ inputs.env }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
-        run: |
-          set -ex
-          git config --global user.name github-action
-          git config --global user.email action@github.com
-          cd cron
-          ln -s ../conf .
-          cd server_deploy
-          ./frontend.js
+        run: cd cron/server_deploy && ./frontend.js
 
   notify:
     needs: [backend, frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: checkout private conf
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository_owner }}/conf
-          token: ${{ secrets.GH_PAT }}
-          path: conf
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
         with:
-          path: cron
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.11
+          gh_pat: ${{ secrets.GH_PAT }}
       - env:
           DEPLOY_ENV: ${{ inputs.env }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
@@ -98,11 +64,4 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           OLD_HASHES: ${{ needs.backend.outputs.old_hashes }}
           NEW_HASHES: ${{ needs.backend.outputs.new_hashes }}
-        run: |
-          set -ex
-          git config --global user.name github-action
-          git config --global user.email action@github.com
-          cd cron
-          ln -s ../conf .
-          cd server_deploy
-          ./notify.js
+        run: cd cron/server_deploy && ./notify.js

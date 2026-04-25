@@ -6,7 +6,8 @@ const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
 const cloneFull = (repo, branch, path) => {
   const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"
-  run("git", ["clone", "-b", branch, url, path], { redact: [GITCODE_TOKEN] })
+  // -q 避免 git 把 URL（含 token）写到 stderr
+  run("git", ["clone", "-q", "-b", branch, url, path], { redact: [GITCODE_TOKEN] })
 }
 
 cloneFull("myaier/site", "dev", "workdir/site")

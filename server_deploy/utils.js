@@ -8,7 +8,11 @@ export const healthUrl = (env) =>
   env === "alpha" ? "https://api.018007.xyz/" : "https://api.talkto.me/"
 
 export const fmtHashes = (old_h, new_h) =>
-  SUBS.map((s) => s + ": " + old_h[s].slice(0, 7) + " -> " + new_h[s].slice(0, 7)).join("\n")
+  SUBS.map((s) => {
+    const o = (old_h?.[s] || "").slice(0, 7) || "?"
+    const n = (new_h?.[s] || "").slice(0, 7) || "?"
+    return s + ": " + o + " -> " + n
+  }).join("\n")
 
 // 根据 backend / frontend 结果选通知文案，返回 [title, lines]
 export const pickNotification = (backend_result, frontend_result, env, old_h, new_h) => {

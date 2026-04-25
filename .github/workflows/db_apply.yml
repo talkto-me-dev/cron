@@ -12,6 +12,10 @@ on:
         type: choice
         options: [alpha, prod]
 
+concurrency:
+  group: db-apply-${{ inputs.env }}
+  cancel-in-progress: false
+
 jobs:
   run:
     uses: ./.github/workflows/cron.yml

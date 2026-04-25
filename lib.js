@@ -22,7 +22,6 @@ export const SRV_REPO = "myaier/srv",
 
 export const ENVS = ["alpha", "prod"]
 
-export const deployBranch = (env) => "deploy-" + env
 export const dbBranch = (env) => "deploy-" + assertEnv(env) + "-db"
 
 export const assertEnv = (env) => {
@@ -36,15 +35,21 @@ const ghPat = () => {
   return t
 }
 
+const applyRedact = (s, redact) => {
+  if (!s || !redact) return s
+  for (const r of redact) if (r) s = s.replaceAll(r, "***")
+  return s
+}
+
+// 成功路径也对 stdout/stderr 应用 redact，防止 token 在打印或返回值中泄漏
 export const run = (cmd, args, opts) => {
   const { redact, ...spawn_opts } = opts || {}
   const r = spawnSync(cmd, args, { encoding: "utf-8", ...spawn_opts })
   if (r.status !== 0) {
-    let msg = r.stderr || r.stdout || "exit " + r.status
-    if (redact) for (const s of redact) msg = msg.replaceAll(s, "***")
+    const msg = applyRedact(r.stderr || r.stdout || "exit " + r.status, redact)
     throw new Error(cmd + " failed: " + msg)
   }
-  return r.stdout
+  return applyRedact(r.stdout, redact)
 }
 
 export const actionRunUrl = () => {
@@ -66,22 +71,23 @@ export const notifyFeishu = async (title, lines) => {
   console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
 }
 
-const cloneGitcode = (repo, branch, path) => {
+// git clone 加 -q 避免 stderr 输出含 token URL；token URL 只用于鉴权，URL 之外不打印
+const cloneGitcode = (repo, branch, path, opts) => {
   const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"
-  run("git", ["clone", "--depth=1", "-b", branch, url, path], { redact: [GITCODE_TOKEN] })
+  const args = ["clone", "-q", "-b", branch]
+  if (!opts || opts.depth !== false) args.push("--depth=1")
+  args.push(url, path)
+  run("git", args, { redact: [GITCODE_TOKEN] })
 }
 
-export const cloneSrvDev = () => cloneGitcode(SRV_REPO, DEV_BRANCH, "srv")
-export const cloneSrvDeploy = (env) => cloneGitcode(SRV_REPO, deployBranch(assertEnv(env)), "srv-deploy")
+export const cloneSrvFromGitcode = (branch, path, opts) => cloneGitcode(SRV_REPO, branch, path, opts)
 export const cloneIConf = () => cloneGitcode(CONF_REPO, DEV_BRANCH, "iconf")
 
-const cloneGithub = (repo, branch, path) => {
+export const cloneSrvFromGithub = (branch, path) => {
   const t = ghPat(),
-    url = "https://oauth2:" + t + "@github.com/" + repo + ".git"
-  run("git", ["clone", "--depth=1", "-b", branch, url, path], { redact: [t] })
+    url = "https://oauth2:" + t + "@github.com/" + SRV_GITHUB_REPO + ".git"
+  run("git", ["clone", "-q", "--depth=1", "-b", branch, url, path], { redact: [t] })
 }
-
-export const cloneSrvGithub = (branch, path) => cloneGithub(SRV_GITHUB_REPO, branch, path)
 
 const SSH_DIR = join(ROOT, "conf/ssh"),
   SSH_CONFIG = join(SSH_DIR, "ssh_config"),

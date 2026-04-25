@@ -1,0 +1,27 @@
+name: setup
+description: Checkout conf + cron + setup bun + git config
+inputs:
+  gh_pat:
+    description: GH_PAT for private conf checkout
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: checkout private conf
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ github.repository_owner }}/conf
+        token: ${{ inputs.gh_pat }}
+        path: conf
+    - uses: actions/checkout@v5
+      with:
+        path: cron
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: 1.3.11
+    - shell: bash
+      run: |
+        set -ex
+        git config --global user.name github-action
+        git config --global user.email action@github.com
+        cd cron && ln -s ../conf .
