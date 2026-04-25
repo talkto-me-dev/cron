@@ -24,11 +24,11 @@ run("bash", [
   "cd workdir/lib && bun i && cd ../srv && bun i && ./build.sh",
 ], { stdio: "inherit" })
 
-// site: bun i first, then explicitly install zx peer dep (auto-peer-install issue on runner)
+// site: rm lockfile + force backend=clonefile to break out of bun cache hardlink that breaks peer-dep resolution
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", [
   "-c",
-  "cd workdir/site && bun install && bun add zx --no-save && " + script,
+  "cd workdir/site && rm -f bun.lock && bun install --backend=clonefile && " + script,
 ], { stdio: "inherit" })
 
 process.exit()
