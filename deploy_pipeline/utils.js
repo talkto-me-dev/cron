@@ -1,6 +1,12 @@
 import { spawnSync } from "child_process"
 import { readFileSync } from "fs"
 
+export const stripNonTableDdl = (sql) =>
+  sql
+    .split("\n")
+    .filter((l) => !/^\s*(CREATE\s+DATABASE|USE\s+|DROP\s+DATABASE)/i.test(l))
+    .join("\n")
+
 export const schemaDiff = (online_file, desired_file) => {
   const result = spawnSync(
     "mysqldef",

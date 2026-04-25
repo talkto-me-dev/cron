@@ -7,15 +7,13 @@ import {
   assertEnv,
   GITCODE_TOKEN,
 } from "../lib.js"
+import { SUBS, targetBranch, subDir as _subDir, healthUrl, fmtHashes } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
-const SUBS = ["lib", "srv", "conf"]
-const ENV_DIR = "/root/site/talkto.me/" + ENV
 const SERVICE = "talkto_me_" + ENV
-const HEALTH_URL = ENV === "alpha" ? "https://api.018007.xyz/" : "https://api.talkto.me/"
+const HEALTH_URL = healthUrl(ENV)
 
-const subDir = (sub) => ENV_DIR + "/" + sub
-const targetBranch = (sub) => (sub === "srv" ? "deploy" : "dev")
+const subDir = (sub) => _subDir(ENV, sub)
 
 const sshCap = (cmd) => ssh("c1", cmd).trim()
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
@@ -66,9 +64,6 @@ const rollback = (old_hashes) => {
   }
   restart()
 }
-
-const fmtHashes = (old_h, new_h) =>
-  SUBS.map((s) => s + ": " + old_h[s].slice(0, 7) + " -> " + new_h[s].slice(0, 7)).join("\n")
 
 const cloneFull = (repo, branch, path) => {
   const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"

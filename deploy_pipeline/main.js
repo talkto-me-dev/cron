@@ -15,15 +15,9 @@ import {
   SRV_GITHUB_REPO,
   DEPLOY_PIPELINE_ACTION_URL,
 } from "../lib.js"
-import { schemaDiff, migrationName } from "./utils.js"
+import { schemaDiff, migrationName, stripNonTableDdl } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
-
-const stripNonTableDdl = (sql) =>
-  sql
-    .split("\n")
-    .filter((l) => !/^\s*(CREATE\s+DATABASE|USE\s+|DROP\s+DATABASE)/i.test(l))
-    .join("\n")
 
 const dumpOnlineSchema = (tidb) =>
   run(
@@ -40,7 +34,7 @@ const dumpOnlineSchema = (tidb) =>
 
 const sync = () => {
   cloneSrvGithub("dev", "srv")
-  const git = (...args) => run("git", args, { cwd: "srv" })
+  const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] })
   const gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
   git("remote", "add", "gitcode", gitcode_url)
   git("fetch", "gitcode", "dev")
