@@ -24,11 +24,11 @@ run("bash", [
   "cd workdir/lib && bun i && cd ../srv && bun i && ./build.sh",
 ], { stdio: "inherit" })
 
-// site: --backend=copyfile to fix bun peer-dep resolution from hardlink cache
+// site: bun i first, then explicitly install zx peer dep (auto-peer-install issue on runner)
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", [
   "-c",
-  "cd workdir/site && bun install --backend=copyfile && " + script,
+  "cd workdir/site && bun install && bun add zx --no-save && " + script,
 ], { stdio: "inherit" })
 
 process.exit()
