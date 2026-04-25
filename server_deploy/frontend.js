@@ -17,9 +17,17 @@ cloneFull("myaier/lib", "dev", "workdir/lib")
 cloneFull("myaier/i.conf", "dev", "workdir/conf")
 cloneFull("myaier/docker", "dev", "workdir/docker")
 
-// 用 npm 装 site，用 node 跑 dist.js（bun runtime 缓存覆盖 node_modules，导致 @3-/zx 找不到 zx）
-run("bash", ["-c",
-  "cd workdir/site && rm -f bun.lock && npm install --no-audit --no-fund && CONF=" + ENV + " node ./sh/dist.js",
-], { stdio: "inherit" })
+// bun i 后，打破 @3-/zx 的 hardlink（Linux 上 bun cache hardlink 导致 peer-dep 解析失效）
+const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
+run("bash", ["-c", `
+  set -ex
+  cd workdir/site
+  bun i
+  bun add zx
+  for f in node_modules/@3-/zx/*.js; do
+    cp -L "$f" "$f.tmp" && mv -f "$f.tmp" "$f"
+  done
+  ${script}
+`], { stdio: "inherit" })
 
 process.exit()
