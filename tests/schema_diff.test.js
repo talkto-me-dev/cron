@@ -1,6 +1,6 @@
 #! /usr/bin/env bun
 import { test, expect, beforeAll, afterAll } from "vitest"
-import { schemaDiff } from "../db_diff/utils.js"
+import { schemaDiff } from "../deploy_pipeline/utils.js"
 import { writeFileSync, unlinkSync } from "fs"
 
 beforeAll(() => {
