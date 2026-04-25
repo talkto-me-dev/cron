@@ -1,4 +1,4 @@
-name: deploy_pipeline
+name: deploy pipeline
 
 env:
   TZ: Asia/Shanghai
