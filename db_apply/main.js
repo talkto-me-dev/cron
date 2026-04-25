@@ -11,16 +11,9 @@ import {
   dispatchWorkflow,
   SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
+import { buildDatabaseUrl } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
-
-const buildDatabaseUrl = (tidb) => {
-  const { username, password, hostname, port, database, tls } = tidb
-  return (
-    "mysql://" + username + ":" + password + "@" + hostname + ":" + port + "/" + database +
-    (tls ? "?tls=true" : "")
-  )
-}
 
 const main = async () => {
   cloneSrvGithub(dbBranch(ENV), "srv-db")
