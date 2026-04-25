@@ -47,7 +47,8 @@ const main = async () => {
     sshLive(
       "cd " + subDir(sub) +
         " && git fetch origin " + br +
-        " && git checkout -B " + br + " FETCH_HEAD",
+        " && git checkout -B " + br + " FETCH_HEAD" +
+        " && if [ -f package.json ]; then bun i; fi",
     )
   }
 
