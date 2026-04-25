@@ -33,6 +33,7 @@ for d in lib srv ai site site/vibe site/static; do
     cd - > /dev/null
   fi
 done
+cd site && bun add zx --no-save && cd ..
 cd srv && ./build.sh
 `], { stdio: "inherit" })
 
