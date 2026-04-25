@@ -3,43 +3,37 @@
 import { writeFileSync, readFileSync, existsSync } from "fs"
 import { randomBytes } from "crypto"
 import {
-  run,
-  notifyFeishu,
-  cloneSrvFromGithub,
-  cloneIConf,
-  tidbConf,
-  assertEnv,
-  dbBranch,
-  dispatchWorkflow,
-  GITCODE_TOKEN,
-  SRV_REPO,
-  SRV_GITHUB_REPO,
-  SERVER_DEPLOY_ACTION_URL,
+  run, notifyFeishu, cloneSrvFromGithub, cloneIConf, tidbConf,
+  assertEnv, dbBranch, dispatchWorkflow,
+  GITCODE_TOKEN, SRV_REPO, SRV_GITHUB_REPO, SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
 import { schemaDiff, migrationName, stripNonTableDdl } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
+const tryOrNotify = async (title, fn, ...prefix) => {
+  try { return await fn() }
+  catch (e) {
+    await notifyFeishu(title, [...prefix, e.message])
+    throw e
+  }
+}
+
 const dumpOnlineSchema = (tidb) =>
-  run(
-    "mysqldump",
-    [
-      "--no-data", "--skip-comments", "--compact", "--ssl-mode=REQUIRED",
-      "--ignore-table=" + tidb.database + ".schema_migrations",
-      "-h" + tidb.hostname, "-P" + tidb.port,
-      "-u" + tidb.username,
-      tidb.database,
-    ],
-    { env: { ...process.env, MYSQL_PWD: tidb.password } },
-  )
+  run("mysqldump", [
+    "--no-data", "--skip-comments", "--compact", "--ssl-mode=REQUIRED",
+    "--ignore-table=" + tidb.database + ".schema_migrations",
+    "-h" + tidb.hostname, "-P" + tidb.port,
+    "-u" + tidb.username,
+    tidb.database,
+  ], { env: { ...process.env, MYSQL_PWD: tidb.password } })
 
 const sync = () => {
   cloneSrvFromGithub("dev", "srv")
-  const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] })
-  const gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
+  const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] }),
+    gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
   git("remote", "add", "gitcode", gitcode_url)
   git("fetch", "-q", "gitcode", "dev")
-  // 强推：deploy 是受控分支，永远等于 dev tip；任何手工热修都会被覆盖
   git("push", "-q", "origin", "+gitcode/dev:dev")
   git("push", "-q", "origin", "+gitcode/dev:deploy")
   git("push", "-q", "gitcode", "+gitcode/dev:deploy")
@@ -48,17 +42,13 @@ const sync = () => {
 
 const closeOpenPr = () => {
   const out = run("gh", [
-    "pr", "list",
-    "--repo", SRV_GITHUB_REPO,
-    "--base", dbBranch(ENV),
-    "--state", "open",
-    "--json", "number",
+    "pr", "list", "--repo", SRV_GITHUB_REPO, "--base", dbBranch(ENV),
+    "--state", "open", "--json", "number",
   ])
   for (const pr of JSON.parse(out || "[]")) {
     run("gh", [
       "pr", "close", String(pr.number),
-      "--repo", SRV_GITHUB_REPO,
-      "--delete-branch",
+      "--repo", SRV_GITHUB_REPO, "--delete-branch",
     ], { stdio: "inherit" })
   }
 }
@@ -81,8 +71,7 @@ const pushAutoBranch = (branch, name) => {
 }
 
 const createPr = (branch, name, diff_sql) => {
-  const body =
-    "自动生成的 schema diff migration (env=" + ENV + ")\n\n```sql\n" + diff_sql + "\n```"
+  const body = "自动生成的 schema diff migration (env=" + ENV + ")\n\n```sql\n" + diff_sql + "\n```"
   return run("gh", [
     "pr", "create",
     "--repo", SRV_GITHUB_REPO,
@@ -94,44 +83,29 @@ const createPr = (branch, name, diff_sql) => {
 }
 
 const main = async () => {
-  try {
-    sync()
-  } catch (e) {
-    await notifyFeishu("❌ 代码同步失败 (" + ENV + ")", [
-      "deploy_pipeline 同步阶段出错，未触发后续部署。",
-      e.message,
-    ])
-    throw e
-  }
+  await tryOrNotify(
+    "❌ 代码同步失败 (" + ENV + ")", () => sync(),
+    "deploy_pipeline 同步阶段出错，未触发后续部署。",
+  )
 
   cloneSrvFromGithub(dbBranch(ENV), "srv-db")
   cloneIConf()
 
-  const tidb = await tidbConf(ENV)
-
-  let online_clean
-  try {
-    online_clean = stripNonTableDdl(dumpOnlineSchema(tidb))
-  } catch (e) {
-    await notifyFeishu("❌ mysqldump 失败 (" + ENV + ")", [e.message])
-    throw e
-  }
+  const tidb = await tidbConf(ENV),
+    online_clean = await tryOrNotify(
+      "❌ mysqldump 失败 (" + ENV + ")",
+      () => stripNonTableDdl(dumpOnlineSchema(tidb)),
+    )
   writeFileSync("online_schema.sql", online_clean)
 
   const desired_file = "srv/tidb.sql"
   if (!existsSync(desired_file)) throw new Error("srv/tidb.sql not found")
-  writeFileSync(
-    "desired_schema.sql",
-    stripNonTableDdl(readFileSync(desired_file, "utf-8")),
-  )
+  writeFileSync("desired_schema.sql", stripNonTableDdl(readFileSync(desired_file, "utf-8")))
 
-  let diff_sql
-  try {
-    diff_sql = schemaDiff("online_schema.sql", "desired_schema.sql")
-  } catch (e) {
-    await notifyFeishu("❌ mysqldef 失败 (" + ENV + ")", [e.message])
-    throw e
-  }
+  const diff_sql = await tryOrNotify(
+    "❌ mysqldef 失败 (" + ENV + ")",
+    () => schemaDiff("online_schema.sql", "desired_schema.sql"),
+  )
 
   if (!diff_sql) {
     console.log("schema 无差异，dispatch deploy")
@@ -143,7 +117,6 @@ const main = async () => {
   }
 
   console.log("diff SQL:\n", diff_sql)
-
   closeOpenPr()
 
   const name = migrationName(diff_sql),

@@ -5,8 +5,7 @@ import { pathToFileURL } from "url"
 import ROOT from "./ROOT.js"
 import FEISHU_WEBHOOK from "./conf/FEISHU_WEBHOOK.js"
 
-// GITCODE_TOKEN 由 Actions secret 注入到 env（自动 redact）；本地直跑需 export
-const GITCODE_TOKEN = process.env.GITCODE_TOKEN
+export const GITCODE_TOKEN = process.env.GITCODE_TOKEN
 if (!GITCODE_TOKEN) throw new Error("GITCODE_TOKEN env not set")
 
 export const SRV_REPO = "myaier/srv",
@@ -22,12 +21,12 @@ export const SRV_REPO = "myaier/srv",
 
 export const ENVS = ["alpha", "prod"]
 
-export const dbBranch = (env) => "deploy-" + assertEnv(env) + "-db"
-
 export const assertEnv = (env) => {
   if (!ENVS.includes(env)) throw new Error("invalid env: " + env + " (expect alpha|prod)")
   return env
 }
+
+export const dbBranch = (env) => "deploy-" + assertEnv(env) + "-db"
 
 const ghPat = () => {
   const t = process.env.GH_PAT || process.env.GH_TOKEN
@@ -41,7 +40,6 @@ const applyRedact = (s, redact) => {
   return s
 }
 
-// 成功路径也对 stdout/stderr 应用 redact，防止 token 在打印或返回值中泄漏
 export const run = (cmd, args, opts) => {
   const { redact, ...spawn_opts } = opts || {}
   const r = spawnSync(cmd, args, { encoding: "utf-8", ...spawn_opts })
@@ -59,35 +57,31 @@ export const actionRunUrl = () => {
 }
 
 export const notifyFeishu = async (title, lines) => {
-  const url = actionRunUrl()
-  const all = url ? [...lines, "", "Action: " + url] : lines
-  const text = title + "\n\n" + all.join("\n")
-  const res = await fetch(FEISHU_WEBHOOK, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ msg_type: "text", content: { text } }),
-  })
-  const body = await res.text()
+  const url = actionRunUrl(),
+    all = url ? [...lines, "", "Action: " + url] : lines,
+    text = title + "\n\n" + all.join("\n"),
+    res = await fetch(FEISHU_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ msg_type: "text", content: { text } }),
+    }),
+    body = await res.text()
   console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
 }
 
-// git clone 加 -q 避免 stderr 输出含 token URL；token URL 只用于鉴权，URL 之外不打印
-const cloneGitcode = (repo, branch, path, opts) => {
-  const url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + repo + ".git"
-  const args = ["clone", "-q", "-b", branch]
-  if (!opts || opts.depth !== false) args.push("--depth=1")
-  args.push(url, path)
-  run("git", args, { redact: [GITCODE_TOKEN] })
+const cloneRepo = (host, repo, branch, path, token) => {
+  const url = "https://oauth2:" + token + "@" + host + "/" + repo + ".git"
+  run("git", ["clone", "-q", "--depth=1", "-b", branch, url, path], { redact: [token] })
 }
 
-export const cloneSrvFromGitcode = (branch, path, opts) => cloneGitcode(SRV_REPO, branch, path, opts)
-export const cloneIConf = () => cloneGitcode(CONF_REPO, DEV_BRANCH, "iconf")
+export const cloneSrvFromGitcode = (branch, path) =>
+  cloneRepo("gitcode.com", SRV_REPO, branch, path, GITCODE_TOKEN)
 
-export const cloneSrvFromGithub = (branch, path) => {
-  const t = ghPat(),
-    url = "https://oauth2:" + t + "@github.com/" + SRV_GITHUB_REPO + ".git"
-  run("git", ["clone", "-q", "--depth=1", "-b", branch, url, path], { redact: [t] })
-}
+export const cloneIConf = () =>
+  cloneRepo("gitcode.com", CONF_REPO, DEV_BRANCH, "iconf", GITCODE_TOKEN)
+
+export const cloneSrvFromGithub = (branch, path) =>
+  cloneRepo("github.com", SRV_GITHUB_REPO, branch, path, ghPat())
 
 const SSH_DIR = join(ROOT, "conf/ssh"),
   SSH_CONFIG = join(SSH_DIR, "ssh_config"),
@@ -119,5 +113,3 @@ export const tidbConf = async (env) => {
   const p = resolve(process.cwd(), "iconf", assertEnv(env), "TIDB.js")
   return (await import(pathToFileURL(p).href)).default
 }
-
-export { GITCODE_TOKEN }

@@ -14,7 +14,6 @@ export const fmtHashes = (old_h, new_h) =>
     return s + ": " + o + " -> " + n
   }).join("\n")
 
-// 根据 backend / frontend 结果选通知文案，返回 [title, lines]
 export const pickNotification = (backend_result, frontend_result, env, old_h, new_h) => {
   if (backend_result !== "success") {
     return [

@@ -1,5 +1,5 @@
 import { test, expect } from "vitest"
-import { buildDatabaseUrl } from "../db_apply/utils.js"
+import buildDatabaseUrl from "../db_apply/utils.js"
 
 test("buildDatabaseUrl 基础格式 mysql://user:pwd@host:port/db", () => {
   expect(

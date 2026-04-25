@@ -1,17 +1,10 @@
 #!/usr/bin/env bun
 
 import {
-  run,
-  notifyFeishu,
-  cloneSrvFromGithub,
-  cloneIConf,
-  tidbConf,
-  assertEnv,
-  dbBranch,
-  dispatchWorkflow,
-  SERVER_DEPLOY_ACTION_URL,
+  run, notifyFeishu, cloneSrvFromGithub, cloneIConf, tidbConf,
+  assertEnv, dbBranch, dispatchWorkflow, SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
-import { buildDatabaseUrl } from "./utils.js"
+import buildDatabaseUrl from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
@@ -20,18 +13,16 @@ const main = async () => {
   cloneIConf()
 
   const tidb = await tidbConf(ENV),
-    env = { ...process.env, DATABASE_URL: buildDatabaseUrl(tidb) }
-
-  const dbmate = (...args) =>
-    run("dbmate", ["--migrations-dir", "srv-db/migration/sql", ...args], { env, stdio: "inherit" })
-  // 单独捕获 status 输出，失败通知里附上让人快速判断 schema 状态
-  const dbmateStatus = () => {
-    try {
-      return run("dbmate", ["--migrations-dir", "srv-db/migration/sql", "status"], { env }).trim()
-    } catch (se) {
-      return "(dbmate status 也失败: " + se.message + ")"
+    env = { ...process.env, DATABASE_URL: buildDatabaseUrl(tidb) },
+    dbmate = (...args) =>
+      run("dbmate", ["--migrations-dir", "srv-db/migration/sql", ...args], { env, stdio: "inherit" }),
+    dbmateStatus = () => {
+      try {
+        return run("dbmate", ["--migrations-dir", "srv-db/migration/sql", "status"], { env }).trim()
+      } catch (se) {
+        return "(dbmate status 也失败: " + se.message + ")"
+      }
     }
-  }
 
   console.log("applying migrations (env=" + ENV + ")...")
   try {
@@ -39,7 +30,6 @@ const main = async () => {
     dbmate("--wait", "up")
     dbmate("status")
   } catch (e) {
-    // dbmate 部分成功 → DB 已变更但代码未部署，schema 领先于代码；通知里附 status
     await notifyFeishu("❌ DB Migration 上线失败 (" + ENV + ")", [
       e.message,
       "",
