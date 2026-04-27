@@ -6,6 +6,7 @@ import { SUBS, targetBranch, subDir as _subDir, healthUrl } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   SERVICE = "talkto_me_" + ENV,
+  BOT_SERVICE = SERVICE + "_bot",
   HEALTH_URL = healthUrl(ENV),
   PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12),
   PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000)
@@ -64,6 +65,7 @@ const main = async () => {
   }
 
   sshLive("systemctl restart " + SERVICE)
+  sshLive("systemctl restart " + BOT_SERVICE)
 
   if (sshCap("systemctl is-active " + SERVICE) !== "active") {
     sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
@@ -71,13 +73,20 @@ const main = async () => {
     throw new Error(SERVICE + " is not active after restart")
   }
 
-  console.log(SERVICE + " active, probing HTTP " + HEALTH_URL)
+  if (sshCap("systemctl is-active " + BOT_SERVICE) !== "active") {
+    sshLive("journalctl -u " + BOT_SERVICE + " -n 200 --no-pager")
+    sshLive("systemctl status " + BOT_SERVICE + " --no-pager")
+    throw new Error(BOT_SERVICE + " is not active after restart")
+  }
+
+  console.log(SERVICE + " & " + BOT_SERVICE + " active, probing HTTP " + HEALTH_URL)
   if (!(await httpProbe())) {
     sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
     throw new Error("HTTP probe failed " + HEALTH_URL)
   }
 
   sshLive("journalctl -u " + SERVICE + " -n 50 --no-pager")
+  sshLive("journalctl -u " + BOT_SERVICE + " -n 50 --no-pager")
   const new_hashes = captureHashes()
   writeOutput("new_hashes", new_hashes)
   console.log("new hashes:", new_hashes)
