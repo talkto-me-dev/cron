@@ -16,7 +16,7 @@ runs:
     - uses: actions/checkout@v5
       with:
         path: cron
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
         node-version: 22
     - uses: oven-sh/setup-bun@v2
