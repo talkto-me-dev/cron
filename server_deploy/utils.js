@@ -1,4 +1,4 @@
-export const SUBS = ["lib", "srv", "conf"]
+export const SUBS = ["lib", "srv", "conf", "ai"]
 
 export const targetBranch = (sub) => (sub === "srv" ? "deploy" : "dev")
 

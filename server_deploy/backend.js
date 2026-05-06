@@ -15,6 +15,7 @@ const subDir = (sub) => _subDir(ENV, sub)
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
 const sshCap = (cmd) => ssh("c1", cmd).trim()
 const remoteBash = (cmd) => "bash -c " + JSON.stringify(cmd)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const captureHashes = () => {
   const r = {}
@@ -66,14 +67,15 @@ const main = async () => {
 
   sshLive("systemctl restart " + SERVICE)
   sshLive("systemctl restart " + RUN_SERVICE)
+  await sleep(3000)
 
-  if (sshCap("systemctl is-active " + SERVICE) !== "active") {
+  if (sshCap("systemctl is-active " + SERVICE + " || true") !== "active") {
     sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
     sshLive("systemctl status " + SERVICE + " --no-pager")
     throw new Error(SERVICE + " is not active after restart")
   }
 
-  if (sshCap("systemctl is-active " + RUN_SERVICE) !== "active") {
+  if (sshCap("systemctl is-active " + RUN_SERVICE + " || true") !== "active") {
     sshLive("journalctl -u " + RUN_SERVICE + " -n 200 --no-pager")
     sshLive("systemctl status " + RUN_SERVICE + " --no-pager")
     throw new Error(RUN_SERVICE + " is not active after restart")
