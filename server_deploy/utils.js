@@ -1,6 +1,6 @@
 export const SUBS = ["lib", "srv", "conf", "ai"]
 
-export const targetBranch = (sub) => (sub === "srv" ? "deploy" : "dev")
+export const targetBranch = (sub) => (sub === "srv" ? "deploy" : sub === "ai" ? "main" : "dev")
 
 export const subDir = (env, sub) => "/root/site/talkto.me/" + env + "/" + sub
 
