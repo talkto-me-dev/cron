@@ -1,15 +1,15 @@
 import { test, expect } from "vitest"
 import { pickNotification } from "../server_deploy/utils.js"
 
-const HASHES_OLD = { lib: "aaaaaaaaaaaa", srv: "bbbbbbbbbbbb", conf: "cccccccccccc" }
-const HASHES_NEW = { lib: "ddddddddddd1", srv: "ddddddddddd2", conf: "ddddddddddd3" }
+const HASHES_OLD = { lib: "aaaaaaaaaaaa", srv: "bbbbbbbbbbbb", conf: "cccccccccccc", ai: "eeeeeeeeeeee" }
+const HASHES_NEW = { lib: "ddddddddddd1", srv: "ddddddddddd2", conf: "ddddddddddd3", ai: "ffffffffffff" }
 
 test("backend & frontend 全成功 → ✅ 部署完成", () => {
   const [title, lines] = pickNotification("success", "success", "alpha", HASHES_OLD, HASHES_NEW)
   expect(title).toBe("✅ 部署完成 (alpha)")
   expect(lines).toEqual([
     "三仓 hash 变更：",
-    "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd",
+    "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
   ])
 })
 
@@ -28,7 +28,7 @@ test("backend 成功 + frontend 失败 → ⚠️ 前端失败 (含 hash diff)",
   expect(lines).toEqual([
     "后端已部署，前端 failure。CF Pages 历史版本手动切换。",
     "三仓 hash:",
-    "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd",
+    "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
   ])
 })
 

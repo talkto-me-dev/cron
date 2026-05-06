@@ -1,12 +1,13 @@
 import { test, expect } from "vitest"
 import { SUBS, targetBranch, subDir, healthUrl, fmtHashes } from "../server_deploy/utils.js"
 
-test("SUBS lib srv conf 顺序固定", () => {
-  expect(SUBS).toEqual(["lib", "srv", "conf"])
+test("SUBS lib srv conf ai 顺序固定", () => {
+  expect(SUBS).toEqual(["lib", "srv", "conf", "ai"])
 })
 
-test("targetBranch srv→deploy 其余→dev", () => {
+test("targetBranch srv→deploy ai→main 其余→dev", () => {
   expect(targetBranch("srv")).toBe("deploy")
+  expect(targetBranch("ai")).toBe("main")
   expect(targetBranch("lib")).toBe("dev")
   expect(targetBranch("conf")).toBe("dev")
 })
@@ -26,13 +27,15 @@ test("fmtHashes 短哈希 + arrow", () => {
     lib: "94ad7cfddb65b1de",
     srv: "f38d49b79dae0868",
     conf: "53a1b80e151fd9fb",
+    ai: "abcdef1234567890",
   }
   const new_h = {
     lib: "abc1234deadbeef0",
     srv: "f38d49b79dae0868",
     conf: "11112222fffeeedd",
+    ai: "1234567abcdef012",
   }
   expect(fmtHashes(old_h, new_h)).toBe(
-    "lib: 94ad7cf -> abc1234\nsrv: f38d49b -> f38d49b\nconf: 53a1b80 -> 1111222",
+    "lib: 94ad7cf -> abc1234\nsrv: f38d49b -> f38d49b\nconf: 53a1b80 -> 1111222\nai: abcdef1 -> 1234567",
   )
 })
