@@ -20,7 +20,10 @@ const REPOS = [
   ["docker", "workdir/docker"],
 ]
 
-for (const [repo, path] of REPOS) cloneFull("myaier/" + repo, "dev", path)
+for (const [repo, path] of REPOS) {
+  const branch = repo === "ai" ? "main" : "dev"
+  cloneFull("myaier/" + repo, branch, path)
+}
 
 const script = ENV === "alpha" ? "./sh/dist.alpha.sh" : "./sh/dist.prod.sh"
 run("bash", ["-c", `
