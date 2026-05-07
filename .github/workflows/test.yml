@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.bun-cache.outputs.dir }}
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json', '**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
