@@ -17,14 +17,16 @@ runs:
       uses: actions/checkout@v5
       with:
         path: cron
+
     - name: 配置 Node
       uses: actions/setup-node@v6
       with:
-        node-version: 25
+        node-version: latest
+
     - name: 配置 Bun
       uses: oven-sh/setup-bun@v2
       with:
-        bun-version: 1.3.12
+        bun-version: latest
 
     - name: 获取 Bun 缓存目录
       id: bun-cache
@@ -35,7 +37,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ steps.bun-cache.outputs.dir }}
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json', '**/bun.lockb') }}
+        key: ${{ runner.os }}-bun
         restore-keys: |
           ${{ runner.os }}-bun-
 
