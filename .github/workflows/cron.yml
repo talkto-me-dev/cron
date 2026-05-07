@@ -14,20 +14,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout private conf
-        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
         with:
-          repository: ${{ github.repository_owner }}/conf
-          token: ${{ secrets.GH_PAT }}
-          path: conf
+          gh_pat: ${{ secrets.GH_PAT }}
 
-      - uses: actions/checkout@v5
-        with:
-          path: cron
-
-      - uses: oven-sh/setup-bun@v2
-
-      - name: ${{inputs.name}}
+      - name: 执行任务
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -35,10 +27,6 @@ jobs:
           DEPLOY_ENV: ${{ inputs.env }}
         run: |
           set -ex
-          sudo bash -c 'echo "StrictHostKeyChecking accept-new" >> /etc/ssh/ssh_config'
-          git config --global user.name github-action
-          git config --global user.email action@github.com
           cd cron
-          ln -s ../conf .
           cd ${{inputs.name}}
           ./run.sh

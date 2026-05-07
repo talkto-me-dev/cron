@@ -1,4 +1,4 @@
-name: server deploy
+name: 服务器部署
 
 env:
   TZ: Asia/Shanghai
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: target env
+        description: 目标环境
         required: true
         type: choice
         options: [alpha, prod]
@@ -18,16 +18,20 @@ concurrency:
 
 jobs:
   backend:
+    name: 后端部署
     runs-on: ubuntu-latest
     outputs:
       old_hashes: ${{ steps.run.outputs.old_hashes }}
       new_hashes: ${{ steps.run.outputs.new_hashes }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
         with:
           gh_pat: ${{ secrets.GH_PAT }}
-      - id: run
+      - name: 执行部署
+        id: run
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -36,28 +40,36 @@ jobs:
         run: cd cron/server_deploy && ./backend.js
 
   frontend:
+    name: 前端部署
     needs: backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
         with:
           gh_pat: ${{ secrets.GH_PAT }}
-      - env:
+      - name: 执行部署
+        env:
           DEPLOY_ENV: ${{ inputs.env }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: cd cron/server_deploy && ./frontend.js
 
   notify:
+    name: 结果通知
     needs: [backend, frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
         with:
           gh_pat: ${{ secrets.GH_PAT }}
-      - env:
+      - name: 发送通知
+        env:
           DEPLOY_ENV: ${{ inputs.env }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
           BACKEND_RESULT: ${{ needs.backend.result }}

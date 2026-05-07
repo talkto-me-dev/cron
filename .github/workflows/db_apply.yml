@@ -1,4 +1,4 @@
-name: db apply
+name: 数据库变更
 
 env:
   TZ: Asia/Shanghai

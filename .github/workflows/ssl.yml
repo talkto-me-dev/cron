@@ -1,4 +1,4 @@
-name: ssl
+name: SSL 证书
 
 env:
   TZ: Asia/Shanghai
