@@ -39,7 +39,7 @@ runs:
         path: ${{ steps.bun-cache.outputs.dir }}
         key: ${{ runner.os }}-bun
         restore-keys: |
-          ${{ runner.os }}-bun-
+          ${{ runner.os }}-bun
 
     - name: 初始化配置
       shell: bash
