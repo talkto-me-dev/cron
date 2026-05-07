@@ -60,7 +60,7 @@ const main = async () => {
       remoteBash(
         "cd " + subDir(sub) +
         " && git checkout -q -B " + br + " origin/" + br +
-        " && if [ -f package.json ]; then bun i || (rm -rf ~/.bun/install/cache && bun i); fi",
+        " && if [ -f package.json ]; then bun i || (rm -rf ~/.bun/install/cache && bun i); grep -q '\"postinstall\"' package.json && bun run postinstall || true; fi",
       ),
     )
   }
