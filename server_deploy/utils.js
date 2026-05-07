@@ -28,11 +28,11 @@ export const pickNotification = (backend_result, frontend_result, env, old_h, ne
     const lines = [
       "后端已部署，前端 " + frontend_result + "。CF Pages 历史版本手动切换。",
     ]
-    if (old_h && new_h) lines.push("三仓 hash:", fmtHashes(old_h, new_h))
+    if (old_h && new_h) lines.push("repo hash:", fmtHashes(old_h, new_h))
     return ["⚠️ 前端失败 (" + env + ")", lines]
   }
   return [
     "✅ 部署完成 (" + env + ")",
-    ["三仓 hash 变更：", fmtHashes(old_h, new_h)],
+    ["repo hash:", fmtHashes(old_h, new_h)],
   ]
 }

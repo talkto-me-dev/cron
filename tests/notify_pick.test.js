@@ -8,7 +8,7 @@ test("backend & frontend 全成功 → ✅ 部署完成", () => {
   const [title, lines] = pickNotification("success", "success", "alpha", HASHES_OLD, HASHES_NEW)
   expect(title).toBe("✅ 部署完成 (alpha)")
   expect(lines).toEqual([
-    "三仓 hash 变更：",
+    "repo hash:",
     "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
   ])
 })
@@ -27,7 +27,7 @@ test("backend 成功 + frontend 失败 → ⚠️ 前端失败 (含 hash diff)",
   expect(title).toBe("⚠️ 前端失败 (prod)")
   expect(lines).toEqual([
     "后端已部署，前端 failure。CF Pages 历史版本手动切换。",
-    "三仓 hash:",
+    "repo hash:",
     "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
   ])
 })
