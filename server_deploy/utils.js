@@ -42,7 +42,7 @@ export const pickNotification = (backend_result, frontend_result, env, old_h, ne
   }
   const lines = []
   lines.push("repo hash:", fmtHashes(old_h, new_h))
-  if (site_url) lines.push("网站: " + site_url)
+  if (site_url) lines.push("\n网站: " + site_url)
   return [
     "✅ 部署完成 (" + env + ")",
     lines,

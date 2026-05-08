@@ -10,7 +10,7 @@ test("backend & frontend 全成功 → ✅ 部署完成", () => {
   expect(lines).toEqual([
     "repo hash:",
     "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
-    "网站: https://018007.xyz",
+    "\n网站: https://018007.xyz",
   ])
 })
 
