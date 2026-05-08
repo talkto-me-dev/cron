@@ -2,14 +2,15 @@
 
 import { appendFileSync } from "fs"
 import { ssh, assertEnv } from "../lib.js"
-import { SUBS, targetBranch, subDir as _subDir, healthUrl } from "./utils.js"
+import { SUBS, targetBranch, subDir as _subDir, loadSiteConf } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   SERVICE = "talkto_me_" + ENV,
   RUN_SERVICE = SERVICE + "_srv_run",
-  HEALTH_URL = healthUrl(ENV),
   PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12),
   PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000)
+
+const { api_url: HEALTH_URL } = await loadSiteConf(ENV)
 
 const subDir = (sub) => _subDir(ENV, sub)
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
