@@ -1,5 +1,5 @@
 import { test, expect } from "vitest"
-import { SUBS, targetBranch, subDir, healthUrl, fmtHashes } from "../server_deploy/utils.js"
+import { SUBS, targetBranch, subDir, fmtHashes } from "../server_deploy/utils.js"
 
 test("SUBS lib srv conf ai 顺序固定", () => {
   expect(SUBS).toEqual(["lib", "srv", "conf", "ai"])
@@ -17,10 +17,6 @@ test("subDir 拼接 env + sub", () => {
   expect(subDir("prod", "lib")).toBe("/root/site/talkto.me/prod/lib")
 })
 
-test("healthUrl 区分 env", () => {
-  expect(healthUrl("alpha")).toBe("https://api.018007.xyz/")
-  expect(healthUrl("prod")).toBe("https://api.talkto.me/")
-})
 
 test("fmtHashes 短哈希 + arrow", () => {
   const old_h = {
