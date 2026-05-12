@@ -2,7 +2,7 @@
 
 import { appendFileSync } from "fs"
 import { ssh, assertEnv } from "../lib.js"
-import { SUBS, targetBranch, subDir as _subDir, loadSiteConf, bashRetryFn } from "./utils.js"
+import { SUBS, targetBranch, subDir as _subDir, loadSiteConf, bashRetryFn, formatOutput } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   SERVICE = "talkto_me_" + ENV,
@@ -11,7 +11,9 @@ const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12),
   PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000),
   PROBE_TIMEOUT_MS = Number(process.env.HTTP_PROBE_TIMEOUT_MS || 8000),
-  RESTART_GRACE_MS = Number(process.env.RESTART_GRACE_MS || 8000)
+  RESTART_GRACE_MS = Number(process.env.RESTART_GRACE_MS || 8000),
+  SYSTEMCTL_RETRIES = Number(process.env.SYSTEMCTL_RETRIES || 6),
+  SYSTEMCTL_INTERVAL_MS = Number(process.env.SYSTEMCTL_INTERVAL_MS || 3000)
 
 const { api_url: HEALTH_URL, main_host: MAIN_HOST } = await loadSiteConf(ENV)
 
@@ -60,7 +62,28 @@ const httpProbe = async () => {
 const writeOutput = (key, value) => {
   const f = process.env.GITHUB_OUTPUT
   if (!f) return
-  appendFileSync(f, key + "=" + JSON.stringify(value) + "\n")
+  appendFileSync(f, key + "=" + formatOutput(value) + "\n")
+}
+
+const checkServicesStatus = () =>
+  parseKv(sshCap(remoteBash(
+    SERVICES.map((s) => "echo " + s + "=$(systemctl is-active " + s + " || true)").join("; "),
+  )))
+
+const waitServicesActive = async () => {
+  for (let i = 0; i < SYSTEMCTL_RETRIES; i++) {
+    const status = checkServicesStatus()
+    const failed = SERVICES.filter((s) => status[s] !== "active")
+    if (failed.length === 0) return
+    console.log("systemctl check " + (i + 1) + "/" + SYSTEMCTL_RETRIES + ": " + failed.join(",") + " not active yet")
+    if (i < SYSTEMCTL_RETRIES - 1) await sleep(SYSTEMCTL_INTERVAL_MS)
+  }
+  const status = checkServicesStatus()
+  for (const svc of SERVICES) {
+    if (status[svc] === "active") continue
+    sshLive(remoteBash(journalctl(svc, 200) + "; systemctl status " + svc + " --no-pager"))
+    throw new Error(svc + " is not active after restart")
+  }
 }
 
 const main = async () => {
@@ -89,14 +112,7 @@ const main = async () => {
   sshLive(SERVICES.map((s) => "systemctl restart " + s).join(" && "))
   await sleep(RESTART_GRACE_MS)
 
-  const status = parseKv(sshCap(remoteBash(
-    SERVICES.map((s) => "echo " + s + "=$(systemctl is-active " + s + " || true)").join("; "),
-  )))
-  for (const svc of SERVICES) {
-    if (status[svc] === "active") continue
-    sshLive(remoteBash(journalctl(svc, 200) + "; systemctl status " + svc + " --no-pager"))
-    throw new Error(svc + " is not active after restart")
-  }
+  await waitServicesActive()
 
   console.log(SERVICES.join(" & ") + " active, probing HTTP " + HEALTH_URL)
   if (!(await httpProbe())) {

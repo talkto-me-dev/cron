@@ -3,6 +3,8 @@ import { pathToFileURL } from "url"
 
 export const SUBS = ["lib", "srv", "conf", "ai"]
 
+export const formatOutput = (v) => (typeof v === "string" ? v : JSON.stringify(v))
+
 export const bashRetryFn =
   "retry() { local n=0 max=${RETRIES:-3} d=${DELAY:-5}; while :; do " +
   "if \"$@\"; then return 0; fi; n=$((n+1)); " +
