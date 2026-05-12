@@ -14,7 +14,7 @@ const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   old_hashes = parseJson(process.env.OLD_HASHES),
   new_hashes = parseJson(process.env.NEW_HASHES)
 
-const { main_host } = await loadSiteConf(ENV),
+const main_host = process.env.MAIN_HOST || (await loadSiteConf(ENV)).main_host,
   site_url = "https://" + main_host,
   [title, lines] = pickNotification(backend_result, frontend_result, ENV, old_hashes, new_hashes, site_url)
 

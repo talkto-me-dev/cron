@@ -13,7 +13,7 @@ const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   PROBE_TIMEOUT_MS = Number(process.env.HTTP_PROBE_TIMEOUT_MS || 8000),
   RESTART_GRACE_MS = Number(process.env.RESTART_GRACE_MS || 8000)
 
-const { api_url: HEALTH_URL } = await loadSiteConf(ENV)
+const { api_url: HEALTH_URL, main_host: MAIN_HOST } = await loadSiteConf(ENV)
 
 const subDir = (sub) => _subDir(ENV, sub)
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
@@ -69,6 +69,7 @@ const main = async () => {
   ).join("; ")
   sshLiveRetry(remoteBash("set -e; " + fetchCmd), "fetch-all")
 
+  writeOutput("main_host", MAIN_HOST)
   const old_hashes = captureHashes()
   console.log("old hashes:", old_hashes)
   writeOutput("old_hashes", old_hashes)

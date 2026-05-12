@@ -23,6 +23,7 @@ jobs:
     outputs:
       old_hashes: ${{ steps.run.outputs.old_hashes }}
       new_hashes: ${{ steps.run.outputs.new_hashes }}
+      main_host: ${{ steps.run.outputs.main_host }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v5
@@ -76,4 +77,5 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           OLD_HASHES: ${{ needs.backend.outputs.old_hashes }}
           NEW_HASHES: ${{ needs.backend.outputs.new_hashes }}
+          MAIN_HOST: ${{ needs.backend.outputs.main_host }}
         run: cd cron/server_deploy && ./notify.js
