@@ -27,7 +27,7 @@ jobs:
         run: echo "dir=$(bun pm cache)" >> $GITHUB_OUTPUT
 
       - name: 缓存 Bun 依赖
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.bun-cache.outputs.dir }}
           key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json') }}
@@ -36,7 +36,7 @@ jobs:
 
       - name: 缓存 mysqldef
         id: cache-mysqldef
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /usr/local/bin/mysqldef
           key: ${{ runner.os }}-mysqldef
@@ -51,4 +51,4 @@ jobs:
         run: bun install
 
       - name: 运行单元测试
-        run: bun test
+        run: bun run test
