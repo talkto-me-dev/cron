@@ -6,7 +6,7 @@ import { bashRetryFn } from "./utils.js"
 const ENV = assertEnv(process.env.DEPLOY_ENV || "")
 
 const REPOS_INDEP = [
-  ["srv", "workdir/srv", "dev"],
+  ["srv", "workdir/srv", "deploy"],
   ["ai", "workdir/ai", "main"],
   ["lib", "workdir/lib", "dev"],
   ["i.conf", "workdir/conf", "dev"],
