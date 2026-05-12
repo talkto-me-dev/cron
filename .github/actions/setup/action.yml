@@ -22,6 +22,7 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: latest
+        check-latest: true
 
     - name: 配置 Bun
       uses: oven-sh/setup-bun@v2
