@@ -1,4 +1,5 @@
 #! /usr/bin/env bun
+import "./_setup.js"
 import { test, expect } from "vitest"
 import { mkdtempSync, readFileSync } from "fs"
 import { tmpdir } from "os"
