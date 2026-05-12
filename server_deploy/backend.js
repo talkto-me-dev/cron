@@ -7,6 +7,7 @@ import { SUBS, targetBranch, subDir as _subDir, loadSiteConf, bashRetryFn } from
 const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   SERVICE = "talkto_me_" + ENV,
   RUN_SERVICE = SERVICE + "_srv_run",
+  SERVICES = [SERVICE, RUN_SERVICE],
   PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12),
   PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000),
   PROBE_TIMEOUT_MS = Number(process.env.HTTP_PROBE_TIMEOUT_MS || 8000),
@@ -23,14 +24,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const SUB_BR = SUBS.map((s) => [s, targetBranch(s)])
 
-const captureHashes = () => {
-  const cmd = SUB_BR.map(([s, br]) =>
-    "echo " + s + "=$(cd " + subDir(s) + " && git rev-parse origin/" + br + ")",
-  ).join("; ")
-  return Object.fromEntries(
-    sshCap(remoteBash(cmd)).split("\n").filter(Boolean).map((l) => l.split("=")),
-  )
-}
+const parseKv = (out) =>
+  Object.fromEntries(out.split("\n").filter(Boolean).map((l) => l.split("=")))
+
+const journalctl = (svc, n) => "journalctl -u " + svc + " -n " + n + " --no-pager"
+
+const captureHashes = () =>
+  parseKv(sshCap(remoteBash(
+    SUB_BR.map(([s, br]) => "echo " + s + "=$(cd " + subDir(s) + " && git rev-parse origin/" + br + ")").join("; "),
+  )))
 
 const httpProbe = async () => {
   for (let i = 0; i < PROBE_RETRIES; i++) {
@@ -71,41 +73,37 @@ const main = async () => {
   console.log("old hashes:", old_hashes)
   writeOutput("old_hashes", old_hashes)
 
-  const installLines = [
+  const installScript = [
     "set -e",
     bashRetryFn,
     "bun_install() { bun i || { rm -rf ~/.bun/install/cache && bun i; }; }",
-  ]
-  for (const [s, br] of SUB_BR) {
-    installLines.push("cd " + subDir(s))
-    installLines.push("git checkout -q -B " + br + " origin/" + br)
-    installLines.push("if [ -f package.json ]; then retry bun_install; grep -q '\"postinstall\"' package.json && bun run postinstall || true; fi")
-  }
-  sshLive(remoteBash(installLines.join("; ")))
+    ...SUB_BR.flatMap(([s, br]) => [
+      "cd " + subDir(s),
+      "git checkout -q -B " + br + " origin/" + br,
+      "if [ -f package.json ]; then retry bun_install; grep -q '\"postinstall\"' package.json && bun run postinstall || true; fi",
+    ]),
+  ].join("; ")
+  sshLive(remoteBash(installScript))
 
-  sshLive("systemctl restart " + SERVICE + " && systemctl restart " + RUN_SERVICE)
+  sshLive(SERVICES.map((s) => "systemctl restart " + s).join(" && "))
   await sleep(RESTART_GRACE_MS)
 
-  const status = Object.fromEntries(
-    sshCap(remoteBash(
-      [SERVICE, RUN_SERVICE].map((s) => "echo " + s + "=$(systemctl is-active " + s + " || true)").join("; "),
-    )).split("\n").filter(Boolean).map((l) => l.split("=")),
-  )
-  for (const svc of [SERVICE, RUN_SERVICE]) {
+  const status = parseKv(sshCap(remoteBash(
+    SERVICES.map((s) => "echo " + s + "=$(systemctl is-active " + s + " || true)").join("; "),
+  )))
+  for (const svc of SERVICES) {
     if (status[svc] === "active") continue
-    sshLive(remoteBash("journalctl -u " + svc + " -n 200 --no-pager; systemctl status " + svc + " --no-pager"))
+    sshLive(remoteBash(journalctl(svc, 200) + "; systemctl status " + svc + " --no-pager"))
     throw new Error(svc + " is not active after restart")
   }
 
-  console.log(SERVICE + " & " + RUN_SERVICE + " active, probing HTTP " + HEALTH_URL)
+  console.log(SERVICES.join(" & ") + " active, probing HTTP " + HEALTH_URL)
   if (!(await httpProbe())) {
-    sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
+    sshLive(journalctl(SERVICE, 200))
     throw new Error("HTTP probe failed " + HEALTH_URL)
   }
 
-  sshLive(remoteBash(
-    [SERVICE, RUN_SERVICE].map((s) => "journalctl -u " + s + " -n 50 --no-pager").join("; "),
-  ))
+  sshLive(remoteBash(SERVICES.map((s) => journalctl(s, 50)).join("; ")))
   const new_hashes = captureHashes()
   writeOutput("new_hashes", new_hashes)
   console.log("new hashes:", new_hashes)
