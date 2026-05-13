@@ -76,12 +76,20 @@ export const actionRunUrl = () => {
 export const notifyFeishu = async (title, lines) => {
   const webhook = (await import("./conf/FEISHU_WEBHOOK.js")).default,
     url = actionRunUrl(),
-    all = url ? [...lines, "", "当前 action: " + url] : lines,
-    text = title + "\n\n" + all.join("\n"),
-    res = await fetch(webhook, {
+    colors = [["❌", "red"], ["✅", "green"], ["⚠️", "orange"]],
+    template = (colors.find(([e]) => title.includes(e)) || [])[1] || "blue",
+    elements = [{ tag: "markdown", content: lines.join("\n") }]
+  if (url) elements.push(
+    { tag: "hr" },
+    { tag: "note", elements: [{ tag: "lark_md", content: "🚀 当前工作流: [" + url + "](" + url + ")" }] },
+  )
+  const res = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ msg_type: "text", content: { text } }),
+      body: JSON.stringify({
+        msg_type: "interactive",
+        card: { header: { title: { tag: "plain_text", content: title }, template }, elements },
+      }),
     }),
     body = await res.text()
   console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))

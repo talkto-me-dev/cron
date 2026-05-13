@@ -111,7 +111,7 @@ const main = async () => {
     console.log("schema 无差异，dispatch deploy")
     dispatchWorkflow("server_deploy.yml", { env: ENV })
     await notifyFeishu("ℹ️ 无 SQL 变更，开始部署 (" + ENV + ")", [
-      "schema 一致，已触发 server_deploy: " + SERVER_DEPLOY_ACTION_URL,
+      "schema 一致，已触发【**服务器部署**】:\n" + SERVER_DEPLOY_ACTION_URL,
     ])
     return
   }
@@ -130,7 +130,7 @@ const main = async () => {
   const summary = diff_sql.length > 500 ? diff_sql.slice(0, 500) + "\n..." : diff_sql
   await notifyFeishu("📋 DB Migration PR 就绪 (" + ENV + ")", [
     "PR: " + pr_url,
-    "合并后触发: " + SERVER_DEPLOY_ACTION_URL,
+    "合并后触发:\n" + SERVER_DEPLOY_ACTION_URL,
     "",
     "Diff SQL:",
     summary,
