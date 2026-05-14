@@ -4,6 +4,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.6"
   }
 }
