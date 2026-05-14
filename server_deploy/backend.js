@@ -2,39 +2,59 @@
 
 import { appendFileSync } from "fs"
 import { ssh, assertEnv } from "../lib.js"
-import { SUBS, targetBranch, subDir as _subDir, healthUrl } from "./utils.js"
+import { SUBS, targetBranch, subDir as _subDir, loadSiteConf, bashRetryFn, formatOutput } from "./utils.js"
 
 const ENV = assertEnv(process.env.DEPLOY_ENV || ""),
   SERVICE = "talkto_me_" + ENV,
   RUN_SERVICE = SERVICE + "_srv_run",
-  HEALTH_URL = healthUrl(ENV),
+  SERVICES = [SERVICE, RUN_SERVICE],
   PROBE_RETRIES = Number(process.env.HTTP_PROBE_RETRIES || 12),
-  PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000)
+  PROBE_INTERVAL_MS = Number(process.env.HTTP_PROBE_INTERVAL_MS || 5000),
+  PROBE_TIMEOUT_MS = Number(process.env.HTTP_PROBE_TIMEOUT_MS || 8000),
+  RESTART_GRACE_MS = Number(process.env.RESTART_GRACE_MS || 8000),
+  SYSTEMCTL_RETRIES = Number(process.env.SYSTEMCTL_RETRIES || 6),
+  SYSTEMCTL_INTERVAL_MS = Number(process.env.SYSTEMCTL_INTERVAL_MS || 3000)
+
+const { api_url: HEALTH_URL, main_host: MAIN_HOST } = await loadSiteConf(ENV)
 
 const subDir = (sub) => _subDir(ENV, sub)
 const sshLive = (cmd) => ssh("c1", cmd, { stdio: "inherit" })
+const sshLiveRetry = (cmd, label) => ssh("c1", cmd, { stdio: "inherit", retry: { tries: 3, label } })
 const sshCap = (cmd) => ssh("c1", cmd).trim()
-const remoteBash = (cmd) => "bash -c " + JSON.stringify(cmd)
+const remoteBash = (cmd) => "bash -c '" + cmd.replaceAll("'", "'\\''") + "'"
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const captureHashes = () => {
-  const r = {}
-  for (const sub of SUBS) {
-    r[sub] = sshCap("cd " + subDir(sub) + " && git rev-parse origin/" + targetBranch(sub))
-  }
-  return r
-}
+const SUB_BR = SUBS.map((s) => [s, targetBranch(s)])
+
+const parseKv = (out) =>
+  Object.fromEntries(out.split("\n").filter(Boolean).map((l) => l.split("=")))
+
+const journalctl = (svc, n) => "journalctl -u " + svc + " -n " + n + " --no-pager"
+
+const captureHashes = () =>
+  parseKv(sshCap(remoteBash(
+    SUB_BR.map(([s, br]) => "echo " + s + "=$(cd " + subDir(s) + " && git rev-parse origin/" + br + ")").join("; "),
+  )))
 
 const httpProbe = async () => {
   for (let i = 0; i < PROBE_RETRIES; i++) {
+    await sleep(PROBE_INTERVAL_MS)
+    const t0 = Date.now()
     try {
-      const res = await fetch(HEALTH_URL)
-      if (res.status >= 200 && res.status < 400) return true
-      console.log("probe " + (i + 1) + ": HTTP " + res.status)
+      const res = await fetch(HEALTH_URL, {
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+        headers: { "cache-control": "no-cache", "user-agent": "deploy-probe/1" },
+        redirect: "manual",
+      })
+      const ms = Date.now() - t0
+      if (res.status < 500) {
+        console.log("probe " + (i + 1) + ": HTTP " + res.status + " (" + ms + "ms) ok")
+        return true
+      }
+      console.log("probe " + (i + 1) + ": HTTP " + res.status + " (" + ms + "ms)")
     } catch (e) {
-      console.log("probe " + (i + 1) + ": " + e.message)
+      console.log("probe " + (i + 1) + ": " + (e.name || "err") + " " + e.message + " (" + (Date.now() - t0) + "ms)")
     }
-    await new Promise((r) => setTimeout(r, PROBE_INTERVAL_MS))
   }
   return false
 }
@@ -42,53 +62,65 @@ const httpProbe = async () => {
 const writeOutput = (key, value) => {
   const f = process.env.GITHUB_OUTPUT
   if (!f) return
-  appendFileSync(f, key + "=" + JSON.stringify(value) + "\n")
+  appendFileSync(f, key + "=" + formatOutput(value) + "\n")
+}
+
+const checkServicesStatus = () =>
+  parseKv(sshCap(remoteBash(
+    SERVICES.map((s) => "echo " + s + "=$(systemctl is-active " + s + " || true)").join("; "),
+  )))
+
+const waitServicesActive = async () => {
+  for (let i = 0; i < SYSTEMCTL_RETRIES; i++) {
+    const status = checkServicesStatus()
+    const failed = SERVICES.filter((s) => status[s] !== "active")
+    if (failed.length === 0) return
+    console.log("systemctl check " + (i + 1) + "/" + SYSTEMCTL_RETRIES + ": " + failed.join(",") + " not active yet")
+    if (i < SYSTEMCTL_RETRIES - 1) await sleep(SYSTEMCTL_INTERVAL_MS)
+  }
+  const status = checkServicesStatus()
+  for (const svc of SERVICES) {
+    if (status[svc] === "active") continue
+    sshLive(remoteBash(journalctl(svc, 200) + "; systemctl status " + svc + " --no-pager"))
+    throw new Error(svc + " is not active after restart")
+  }
 }
 
 const main = async () => {
-  for (const sub of SUBS) {
-    const br = targetBranch(sub)
-    sshLive("cd " + subDir(sub) + " && git fetch -q origin +" + br + ":refs/remotes/origin/" + br)
-  }
+  const fetchCmd = SUB_BR.map(([s, br]) =>
+    "cd " + subDir(s) + " && git fetch -q origin +" + br + ":refs/remotes/origin/" + br,
+  ).join("; ")
+  sshLiveRetry(remoteBash("set -e; " + fetchCmd), "fetch-all")
+
+  writeOutput("main_host", MAIN_HOST)
   const old_hashes = captureHashes()
   console.log("old hashes:", old_hashes)
   writeOutput("old_hashes", old_hashes)
 
-  for (const sub of SUBS) {
-    const br = targetBranch(sub)
-    sshLive(
-      remoteBash(
-        "cd " + subDir(sub) +
-        " && git checkout -q -B " + br + " origin/" + br +
-        " && if [ -f package.json ]; then bun i || (rm -rf ~/.bun/install/cache && bun i); fi",
-      ),
-    )
-  }
+  const installScript = [
+    "set -e",
+    bashRetryFn,
+    "bun_install() { bun i || { rm -rf ~/.bun/install/cache && bun i; }; }",
+    ...SUB_BR.flatMap(([s, br]) => [
+      "cd " + subDir(s),
+      "git checkout -q -B " + br + " origin/" + br,
+      "if [ -f package.json ]; then retry bun_install; grep -q '\"postinstall\"' package.json && bun run postinstall || true; fi",
+    ]),
+  ].join("; ")
+  sshLive(remoteBash(installScript))
 
-  sshLive("systemctl restart " + SERVICE)
-  sshLive("systemctl restart " + RUN_SERVICE)
-  await sleep(3000)
+  sshLive(SERVICES.map((s) => "systemctl restart " + s).join(" && "))
+  await sleep(RESTART_GRACE_MS)
 
-  if (sshCap("systemctl is-active " + SERVICE + " || true") !== "active") {
-    sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
-    sshLive("systemctl status " + SERVICE + " --no-pager")
-    throw new Error(SERVICE + " is not active after restart")
-  }
+  await waitServicesActive()
 
-  if (sshCap("systemctl is-active " + RUN_SERVICE + " || true") !== "active") {
-    sshLive("journalctl -u " + RUN_SERVICE + " -n 200 --no-pager")
-    sshLive("systemctl status " + RUN_SERVICE + " --no-pager")
-    throw new Error(RUN_SERVICE + " is not active after restart")
-  }
-
-  console.log(SERVICE + " & " + RUN_SERVICE + " active, probing HTTP " + HEALTH_URL)
+  console.log(SERVICES.join(" & ") + " active, probing HTTP " + HEALTH_URL)
   if (!(await httpProbe())) {
-    sshLive("journalctl -u " + SERVICE + " -n 200 --no-pager")
+    sshLive(journalctl(SERVICE, 200))
     throw new Error("HTTP probe failed " + HEALTH_URL)
   }
 
-  sshLive("journalctl -u " + SERVICE + " -n 50 --no-pager")
-  sshLive("journalctl -u " + RUN_SERVICE + " -n 50 --no-pager")
+  sshLive(remoteBash(SERVICES.map((s) => journalctl(s, 50)).join("; ")))
   const new_hashes = captureHashes()
   writeOutput("new_hashes", new_hashes)
   console.log("new hashes:", new_hashes)

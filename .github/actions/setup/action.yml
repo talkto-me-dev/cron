@@ -21,7 +21,7 @@ runs:
     - name: 配置 Node
       uses: actions/setup-node@v6
       with:
-        node-version: latest
+        node-version: "25"
 
     - name: 配置 Bun
       uses: oven-sh/setup-bun@v2
@@ -34,7 +34,7 @@ runs:
       run: echo "bun_cache=$(bun pm cache)" >> $GITHUB_OUTPUT
 
     - name: 缓存 Bun 依赖
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ steps.bun-cache.outputs.bun_cache }}
         key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json') }}

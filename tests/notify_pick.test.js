@@ -5,11 +5,12 @@ const HASHES_OLD = { lib: "aaaaaaaaaaaa", srv: "bbbbbbbbbbbb", conf: "cccccccccc
 const HASHES_NEW = { lib: "ddddddddddd1", srv: "ddddddddddd2", conf: "ddddddddddd3", ai: "ffffffffffff" }
 
 test("backend & frontend 全成功 → ✅ 部署完成", () => {
-  const [title, lines] = pickNotification("success", "success", "alpha", HASHES_OLD, HASHES_NEW)
+  const [title, lines] = pickNotification("success", "success", "alpha", HASHES_OLD, HASHES_NEW, "https://018007.xyz")
   expect(title).toBe("✅ 部署完成 (alpha)")
   expect(lines).toEqual([
-    "三仓 hash 变更：",
+    "repo hash:",
     "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
+    "\n网站: https://018007.xyz",
   ])
 })
 
@@ -23,11 +24,11 @@ test("backend 失败 → ❌ 部署失败 (含失败状态)", () => {
 })
 
 test("backend 成功 + frontend 失败 → ⚠️ 前端失败 (含 hash diff)", () => {
-  const [title, lines] = pickNotification("success", "failure", "prod", HASHES_OLD, HASHES_NEW)
+  const [title, lines] = pickNotification("success", "failure", "prod", HASHES_OLD, HASHES_NEW, "https://talkto.me")
   expect(title).toBe("⚠️ 前端失败 (prod)")
   expect(lines).toEqual([
     "后端已部署，前端 failure。CF Pages 历史版本手动切换。",
-    "三仓 hash:",
+    "repo hash:",
     "lib: aaaaaaa -> ddddddd\nsrv: bbbbbbb -> ddddddd\nconf: ccccccc -> ddddddd\nai: eeeeeee -> fffffff",
   ])
 })

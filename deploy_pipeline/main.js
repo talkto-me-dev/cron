@@ -3,7 +3,7 @@
 import { writeFileSync, readFileSync, existsSync } from "fs"
 import { randomBytes } from "crypto"
 import {
-  run, notifyFeishu, cloneSrvFromGithub, cloneIConf, tidbConf,
+  run, runRetry, notifyFeishu, cloneSrvFromGithub, cloneIConf, tidbConf,
   assertEnv, dbBranch, dispatchWorkflow,
   GITCODE_TOKEN, SRV_REPO, SRV_GITHUB_REPO, SERVER_DEPLOY_ACTION_URL,
 } from "../lib.js"
@@ -31,12 +31,17 @@ const dumpOnlineSchema = (tidb) =>
 const sync = () => {
   cloneSrvFromGithub("dev", "srv")
   const git = (...args) => run("git", args, { cwd: "srv", redact: [GITCODE_TOKEN] }),
+    gitPush = (...args) => runRetry("git", args, {
+      cwd: "srv", redact: [GITCODE_TOKEN], tries: 3, delayMs: 3000,
+      label: "git push", onRetry: () => git("fetch", "-q", "origin"),
+    }),
     gitcode_url = "https://oauth2:" + GITCODE_TOKEN + "@gitcode.com/" + SRV_REPO + ".git"
   git("remote", "add", "gitcode", gitcode_url)
   git("fetch", "-q", "gitcode", "dev")
-  git("push", "-q", "origin", "+gitcode/dev:dev")
-  git("push", "-q", "origin", "+gitcode/dev:deploy")
-  git("push", "-q", "gitcode", "+gitcode/dev:deploy")
+  git("fetch", "-q", "origin")
+  gitPush("push", "-q", "origin", "+gitcode/dev:dev")
+  gitPush("push", "-q", "origin", "+gitcode/dev:deploy")
+  gitPush("push", "-q", "gitcode", "+gitcode/dev:deploy")
   git("reset", "-q", "--hard", "gitcode/dev")
 }
 
@@ -111,7 +116,7 @@ const main = async () => {
     console.log("schema 无差异，dispatch deploy")
     dispatchWorkflow("server_deploy.yml", { env: ENV })
     await notifyFeishu("ℹ️ 无 SQL 变更，开始部署 (" + ENV + ")", [
-      "schema 一致，已触发 server_deploy: " + SERVER_DEPLOY_ACTION_URL,
+      "schema 一致，已触发【**服务器部署**】:\n" + SERVER_DEPLOY_ACTION_URL,
     ])
     return
   }
@@ -130,7 +135,7 @@ const main = async () => {
   const summary = diff_sql.length > 500 ? diff_sql.slice(0, 500) + "\n..." : diff_sql
   await notifyFeishu("📋 DB Migration PR 就绪 (" + ENV + ")", [
     "PR: " + pr_url,
-    "合并后触发: " + SERVER_DEPLOY_ACTION_URL,
+    "合并后触发:\n" + SERVER_DEPLOY_ACTION_URL,
     "",
     "Diff SQL:",
     summary,

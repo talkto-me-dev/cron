@@ -3,7 +3,6 @@ import { resolve, join } from "path"
 import { chmodSync } from "fs"
 import { pathToFileURL } from "url"
 import ROOT from "./ROOT.js"
-import FEISHU_WEBHOOK from "./conf/FEISHU_WEBHOOK.js"
 
 export const GITCODE_TOKEN = process.env.GITCODE_TOKEN
 if (!GITCODE_TOKEN) throw new Error("GITCODE_TOKEN env not set")
@@ -50,6 +49,24 @@ export const run = (cmd, args, opts) => {
   return applyRedact(r.stdout, redact)
 }
 
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+export const runRetry = (cmd, args, opts) => {
+  const { tries = 3, delayMs = 5000, factor = 2, label, onRetry, ...rest } = opts || {}
+  let d = delayMs
+  for (let i = 1; ; i++) {
+    try {
+      return run(cmd, args, rest)
+    } catch (e) {
+      if (i >= tries) throw e
+      console.error("retry: " + (label || cmd) + " failed (" + i + "/" + tries + "), sleep " + d + "ms — " + e.message)
+      if (onRetry) onRetry(i, e)
+      sleepSync(d)
+      d *= factor
+    }
+  }
+}
+
 export const actionRunUrl = () => {
   const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env
   if (!GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_RUN_ID) return ""
@@ -57,13 +74,22 @@ export const actionRunUrl = () => {
 }
 
 export const notifyFeishu = async (title, lines) => {
-  const url = actionRunUrl(),
-    all = url ? [...lines, "", "当前 action: " + url] : lines,
-    text = title + "\n\n" + all.join("\n"),
-    res = await fetch(FEISHU_WEBHOOK, {
+  const webhook = (await import("./conf/FEISHU_WEBHOOK.js")).default,
+    url = actionRunUrl(),
+    colors = [["❌", "red"], ["✅", "green"], ["⚠️", "orange"]],
+    template = (colors.find(([e]) => title.includes(e)) || [])[1] || "blue",
+    elements = [{ tag: "markdown", content: lines.join("\n") }]
+  if (url) elements.push(
+    { tag: "hr" },
+    { tag: "note", elements: [{ tag: "lark_md", content: "🚀 当前工作流: [" + url + "](" + url + ")" }] },
+  )
+  const res = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ msg_type: "text", content: { text } }),
+      body: JSON.stringify({
+        msg_type: "interactive",
+        card: { header: { title: { tag: "plain_text", content: title }, template }, elements },
+      }),
     }),
     body = await res.text()
   console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
@@ -96,11 +122,10 @@ const sshInit = () => {
 
 export const ssh = (host, cmd, opts) => {
   sshInit()
-  return run(
-    "ssh",
-    ["-F", SSH_CONFIG, "-i", SSH_KEY, "-o", "StrictHostKeyChecking=no", host, cmd],
-    opts || {},
-  )
+  const { retry, ...rest } = opts || {}
+  const args = ["-F", SSH_CONFIG, "-i", SSH_KEY, "-o", "StrictHostKeyChecking=no", host, cmd]
+  if (retry) return runRetry("ssh", args, { ...rest, ...retry })
+  return run("ssh", args, rest)
 }
 
 export const dispatchWorkflow = (workflow, inputs) => {

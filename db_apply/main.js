@@ -44,7 +44,7 @@ const main = async () => {
   dispatchWorkflow("server_deploy.yml", { env: ENV })
 
   await notifyFeishu("✅ DB Migration 上线完成 (" + ENV + ")", [
-    "已触发 server_deploy: " + SERVER_DEPLOY_ACTION_URL,
+    "已触发【**服务器部署**】:\n" + SERVER_DEPLOY_ACTION_URL,
   ])
 }
 
