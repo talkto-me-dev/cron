@@ -27,6 +27,8 @@ const main = async () => {
 
   ssh("c1", "rm -f /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js");
 
+  ssh("c1", "bash -c 'cd /root/site/talkto.me/alpha/ && bash init_oauth.sh'");
+
   const match = output.match(/KVROCKS_DELETED_COUNT=(\d+)/),
     kvrocks_count = match ? match[1] : "?";
 
