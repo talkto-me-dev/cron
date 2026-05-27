@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 
 import { Redis } from "ioredis";
-import { readdirSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { SQL } from "bun";
 
 const tidb = (await import("./TIDB.js")).default,
   kvrocks = (await import("./KVROCKS.js")).default,
-  sql_file = "../../srv/tidb.sql",
+  sql_file = "./reset_tidb.sql",
   batch_size = 100,
+  versions_placeholder = [],
   resetKvrocks = async () => {
     const client = new Redis(kvrocks);
     let cur = "0",
@@ -64,15 +65,9 @@ const tidb = (await import("./TIDB.js")).default,
       await db.unsafe(s);
     }
 
-    const migration_dir = "../../srv/migration/sql",
-      files = readdirSync(migration_dir),
-      versions = files
-        .filter((f) => f.endsWith(".sql"))
-        .map((f) => f.split("_")[0]);
-
-    if (versions.length > 0) {
+    if (versions_placeholder.length > 0) {
       await db.unsafe("CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(255) PRIMARY KEY)");
-      for (const v of versions) {
+      for (const v of versions_placeholder) {
         await db.unsafe(`INSERT IGNORE INTO schema_migrations (version) VALUES ('${v}')`);
       }
     }
