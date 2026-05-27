@@ -1,4 +1,4 @@
-name: 重置 Alpha 数据库
+name: 重置 alpha 环境 tidb 和 kvrocks
 
 env:
   TZ: Asia/Shanghai
