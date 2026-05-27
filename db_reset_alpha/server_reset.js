@@ -8,7 +8,7 @@ const tidb = (await import("./TIDB.js")).default,
   kvrocks = (await import("./KVROCKS.js")).default,
   sql_file = "./reset_tidb.sql",
   batch_size = 100,
-  versions_placeholder = [],
+  versions = process.argv.slice(2),
   resetKvrocks = async () => {
     const client = new Redis(kvrocks);
     let cur = "0",
@@ -65,9 +65,9 @@ const tidb = (await import("./TIDB.js")).default,
       await db.unsafe(s);
     }
 
-    if (versions_placeholder.length > 0) {
+    if (versions.length > 0) {
       await db.unsafe("CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(255) PRIMARY KEY)");
-      for (const v of versions_placeholder) {
+      for (const v of versions) {
         await db.unsafe(`INSERT IGNORE INTO schema_migrations (version) VALUES ('${v}')`);
       }
     }
