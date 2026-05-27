@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { Redis } from "ioredis";
+import { readdirSync } from "fs";
 import { $ } from "bun";
 
 const tidb = (await import("./TIDB.js")).default,
@@ -56,6 +57,18 @@ const tidb = (await import("./TIDB.js")).default,
   resetTidb = async () => {
     await runTidb(["-e", sql_cmd]);
     await runTidb(["ai"], sql_file);
+
+    const migration_dir = "../../srv/migration/sql",
+      files = readdirSync(migration_dir),
+      versions = files
+        .filter((f) => f.endsWith(".sql"))
+        .map((f) => f.split("_")[0]);
+
+    if (versions.length > 0) {
+      const insert_sql = "CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(255) PRIMARY KEY); " +
+        `INSERT IGNORE INTO schema_migrations (version) VALUES ${versions.map((v) => `('${v}')`).join(", ")};`;
+      await runTidb(["ai", "-e", insert_sql]);
+    }
   },
   main = async () => {
     const count = await resetKvrocks();
@@ -64,4 +77,5 @@ const tidb = (await import("./TIDB.js")).default,
   };
 
 await main();
+
 
