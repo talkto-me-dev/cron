@@ -10,7 +10,7 @@ const main = async () => {
 
   ssh("c1", "cat > /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js", { input: script_content });
 
-  const output = ssh("c1", "cd /root/site/talkto.me/alpha/conf/alpha/ && /root/.bun/bin/bun reset_alpha.js");
+  const output = ssh("c1", "bash -c 'cd /root/site/talkto.me/alpha/conf/alpha/ && bun reset_alpha.js'");
   console.log(output);
 
   ssh("c1", "rm -f /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js");
