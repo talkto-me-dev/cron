@@ -21,7 +21,7 @@ const main = async () => {
   const script_path = join(import.meta.dirname, "server_reset.js"),
     script_content = readFileSync(script_path, "utf8"),
     final_script = script_content.replace(
-      "versions_placeholder = []",
+      /versions_placeholder\s*=\s*\[\s*\]/,
       `versions_placeholder = ${JSON.stringify(versions)}`
     );
 
