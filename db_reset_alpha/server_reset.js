@@ -6,7 +6,7 @@ import { SQL } from "bun";
 
 const tidb = (await import("./TIDB.js")).default,
   kvrocks = (await import("./KVROCKS.js")).default,
-  sql_file = "./reset_tidb.sql",
+  sql_file = "../../srv/tidb.sql",
   batch_size = 100,
   versions = process.argv.slice(2),
   resetKvrocks = async () => {
