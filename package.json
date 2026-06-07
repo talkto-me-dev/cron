@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  }
+}

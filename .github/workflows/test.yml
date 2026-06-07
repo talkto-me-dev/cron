@@ -1,0 +1,54 @@
+name: 测试
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: 运行测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 配置 Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: 获取 Bun 缓存目录
+        id: bun-cache
+        shell: bash
+        run: echo "dir=$(bun pm cache)" >> $GITHUB_OUTPUT
+
+      - name: 缓存 Bun 依赖
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.bun-cache.outputs.dir }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: 缓存 mysqldef
+        id: cache-mysqldef
+        uses: actions/cache@v5
+        with:
+          path: /usr/local/bin/mysqldef
+          key: ${{ runner.os }}-mysqldef
+
+      - name: 安装 mysqldef
+        if: steps.cache-mysqldef.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://github.com/sqldef/sqldef/releases/latest/download/mysqldef_linux_amd64.tar.gz | tar xz
+          sudo mv mysqldef /usr/local/bin/
+
+      - name: 安装依赖
+        run: bun install
+
+      - name: 运行单元测试
+        run: bun run test

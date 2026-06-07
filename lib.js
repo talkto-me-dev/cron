@@ -1,0 +1,140 @@
+import { spawnSync } from "child_process"
+import { resolve, join } from "path"
+import { chmodSync } from "fs"
+import { pathToFileURL } from "url"
+import ROOT from "./ROOT.js"
+
+export const GITCODE_TOKEN = process.env.GITCODE_TOKEN
+if (!GITCODE_TOKEN) throw new Error("GITCODE_TOKEN env not set")
+
+export const SRV_REPO = "myaier/srv",
+  SRV_GITHUB_REPO = "talkto-me-dev/srv",
+  CRON_GITHUB_REPO = "talkto-me-dev/cron",
+  CONF_REPO = "myaier/i.conf",
+  DEV_BRANCH = "dev",
+  DEPLOY_BRANCH = "deploy",
+  GITCODE_API = "https://api.gitcode.com/api/v5",
+  DB_APPLY_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/db_apply.yml",
+  DEPLOY_PIPELINE_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/deploy_pipeline.yml",
+  SERVER_DEPLOY_ACTION_URL = "https://github.com/talkto-me-dev/cron/actions/workflows/server_deploy.yml"
+
+export const ENVS = ["alpha", "prod"]
+
+export const assertEnv = (env) => {
+  if (!ENVS.includes(env)) throw new Error("invalid env: " + env + " (expect alpha|prod)")
+  return env
+}
+
+export const dbBranch = (env) => "deploy-" + assertEnv(env) + "-db"
+
+const ghPat = () => {
+  const t = process.env.GH_PAT || process.env.GH_TOKEN
+  if (!t) throw new Error("GH_PAT/GH_TOKEN env not set")
+  return t
+}
+
+const applyRedact = (s, redact) => {
+  if (!s || !redact) return s
+  for (const r of redact) if (r) s = s.replaceAll(r, "***")
+  return s
+}
+
+export const run = (cmd, args, opts) => {
+  const { redact, ...spawn_opts } = opts || {}
+  const r = spawnSync(cmd, args, { encoding: "utf-8", ...spawn_opts })
+  if (r.status !== 0) {
+    const msg = applyRedact(r.stderr || r.stdout || "exit " + r.status, redact)
+    throw new Error(cmd + " failed: " + msg)
+  }
+  return applyRedact(r.stdout, redact)
+}
+
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+export const runRetry = (cmd, args, opts) => {
+  const { tries = 3, delayMs = 5000, factor = 2, label, onRetry, ...rest } = opts || {}
+  let d = delayMs
+  for (let i = 1; ; i++) {
+    try {
+      return run(cmd, args, rest)
+    } catch (e) {
+      if (i >= tries) throw e
+      console.error("retry: " + (label || cmd) + " failed (" + i + "/" + tries + "), sleep " + d + "ms — " + e.message)
+      if (onRetry) onRetry(i, e)
+      sleepSync(d)
+      d *= factor
+    }
+  }
+}
+
+export const actionRunUrl = () => {
+  const { GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env
+  if (!GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_RUN_ID) return ""
+  return GITHUB_SERVER_URL + "/" + GITHUB_REPOSITORY + "/actions/runs/" + GITHUB_RUN_ID
+}
+
+export const notifyFeishu = async (title, lines) => {
+  const webhook = (await import("./conf/FEISHU_WEBHOOK.js")).default,
+    url = actionRunUrl(),
+    colors = [["❌", "red"], ["✅", "green"], ["⚠️", "orange"]],
+    template = (colors.find(([e]) => title.includes(e)) || [])[1] || "blue",
+    elements = [{ tag: "markdown", content: lines.join("\n") }]
+  if (url) elements.push(
+    { tag: "hr" },
+    { tag: "note", elements: [{ tag: "lark_md", content: "🚀 当前工作流: [" + url + "](" + url + ")" }] },
+  )
+  const res = await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        msg_type: "interactive",
+        card: { header: { title: { tag: "plain_text", content: title }, template }, elements },
+      }),
+    }),
+    body = await res.text()
+  console.log("[feishu " + res.status + "] " + title + " -> " + body.slice(0, 200))
+}
+
+const cloneRepo = (host, repo, branch, path, token) => {
+  const url = "https://oauth2:" + token + "@" + host + "/" + repo + ".git"
+  run("git", ["clone", "-q", "--depth=1", "-b", branch, url, path], { redact: [token] })
+}
+
+export const cloneSrvFromGitcode = (branch, path) =>
+  cloneRepo("gitcode.com", SRV_REPO, branch, path, GITCODE_TOKEN)
+
+export const cloneIConf = () =>
+  cloneRepo("gitcode.com", CONF_REPO, DEV_BRANCH, "iconf", GITCODE_TOKEN)
+
+export const cloneSrvFromGithub = (branch, path) =>
+  cloneRepo("github.com", SRV_GITHUB_REPO, branch, path, ghPat())
+
+const SSH_DIR = join(ROOT, "conf/ssh"),
+  SSH_CONFIG = join(SSH_DIR, "ssh_config"),
+  SSH_KEY = join(SSH_DIR, "id_ed25519")
+
+let _ssh_inited = false
+const sshInit = () => {
+  if (_ssh_inited) return
+  chmodSync(SSH_KEY, 0o600)
+  _ssh_inited = true
+}
+
+export const ssh = (host, cmd, opts) => {
+  sshInit()
+  const { retry, ...rest } = opts || {}
+  const args = ["-F", SSH_CONFIG, "-i", SSH_KEY, "-o", "StrictHostKeyChecking=no", host, cmd]
+  if (retry) return runRetry("ssh", args, { ...rest, ...retry })
+  return run("ssh", args, rest)
+}
+
+export const dispatchWorkflow = (workflow, inputs) => {
+  const args = ["workflow", "run", workflow, "--repo", CRON_GITHUB_REPO]
+  for (const [k, v] of Object.entries(inputs || {})) args.push("-f", k + "=" + v)
+  return run("gh", args, { stdio: "inherit", env: { ...process.env, GH_TOKEN: ghPat() } })
+}
+
+export const tidbConf = async (env) => {
+  const p = resolve(process.cwd(), "iconf", assertEnv(env), "TIDB.js")
+  return (await import(pathToFileURL(p).href)).default
+}

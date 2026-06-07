@@ -1,0 +1,25 @@
+name: 数据库表结构部署
+
+env:
+  TZ: Asia/Shanghai
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: target env
+        required: true
+        type: choice
+        options: [alpha, prod]
+
+concurrency:
+  group: deploy-pipeline-${{ inputs.env }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    uses: ./.github/workflows/cron.yml
+    with:
+      name: deploy_pipeline
+      env: ${{ inputs.env }}
+    secrets: inherit
