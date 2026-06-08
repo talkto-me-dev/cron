@@ -109,7 +109,7 @@ const main = async () => {
 
   const diff_sql = await tryOrNotify(
     "❌ mysqldef 失败 (" + ENV + ")",
-    () => schemaDiff("online_schema.sql", "desired_schema.sql"),
+    () => schemaDiff("online_schema.sql", "desired_schema.sql", { enableDrop: true }),
   )
 
   if (!diff_sql) {
