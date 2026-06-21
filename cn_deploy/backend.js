@@ -78,13 +78,14 @@ const probe = () => {
 }
 
 // mysqldef 声明式增量：把本地 docker 库 schema 收敛到 srv/tidb.sql。
-// 不传 --enable-drop-table → 永不删表（安全）；DROP COLUMN 等会 apply，故 dry-run diff 进 output 供通知可见。
+// 不传 --enable-drop → mysqldef 永不删表/删列（删除一律 Skipped），仅 ADD/MODIFY，最大化数据安全。
+// dry-run diff 写入 output 供通知可见；MODIFY（类型变更可能截断）时额外告警。
 const migrate = () => {
   const at = "cd " + APP + "/srv && mysqldef " + TIDB_DSN
   const diff = sshCap(remoteBash(at + " --dry-run < tidb.sql"))
   console.log("mysqldef dry-run:\n" + diff)
   writeOutput("mysqldef_diff", diff)
-  if (/DROP\s+COLUMN|RENAME\s+(COLUMN|TABLE)/i.test(diff)) console.log("⚠️ mysqldef diff 含潜在破坏性变更（仍 apply，详见上）")
+  if (/MODIFY\s+COLUMN/i.test(diff)) console.log("⚠️ mysqldef diff 含 MODIFY COLUMN（类型变更可能截断数据，详见上）")
   sshLive(remoteBash(at + " < tidb.sql"))
 }
 
