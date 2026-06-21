@@ -1,0 +1,27 @@
+name: CN 数据库重置 (alpha_cn)
+
+env:
+  TZ: Asia/Shanghai
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cn-db-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    name: 数据库重置
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
+        with:
+          gh_pat: ${{ secrets.GH_PAT }}
+      - name: 执行重置
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+        run: cd cron/db_reset_cn && ./main.js
