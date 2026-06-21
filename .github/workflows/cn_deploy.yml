@@ -49,3 +49,25 @@ jobs:
         env:
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: cd cron/cn_deploy && ./frontend.js
+
+  notify:
+    name: 结果通知
+    needs: [backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
+        with:
+          gh_pat: ${{ secrets.GH_PAT }}
+      - name: 发送通知
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          OLD_HASHES: ${{ needs.backend.outputs.old_hashes }}
+          NEW_HASHES: ${{ needs.backend.outputs.new_hashes }}
+          MYSQLDEF_DIFF: ${{ needs.backend.outputs.mysqldef_diff }}
+        run: cd cron/cn_deploy && ./notify.js
