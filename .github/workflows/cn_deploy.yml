@@ -1,0 +1,34 @@
+name: CN 部署 (alpha_cn)
+
+env:
+  TZ: Asia/Shanghai
+
+on:
+  workflow_dispatch:
+
+# 与 global server-deploy-${env} 分组隔离 → alpha_cn 与 global 可并行
+concurrency:
+  group: cn-deploy
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: 后端部署
+    runs-on: ubuntu-latest
+    outputs:
+      old_hashes: ${{ steps.run.outputs.old_hashes }}
+      new_hashes: ${{ steps.run.outputs.new_hashes }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
+        with:
+          gh_pat: ${{ secrets.GH_PAT }}
+      - name: 执行部署
+        id: run
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+        run: cd cron/cn_deploy && ./backend.js
