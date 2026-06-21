@@ -33,3 +33,19 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: cd cron/cn_deploy && ./backend.js
+
+  # 与 backend 并行（无 needs）：runner 境外构建 → 阿里 OSS+CDN
+  frontend:
+    name: 前端交付
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+      - name: 环境配置
+        uses: ./.github/actions/setup
+        with:
+          gh_pat: ${{ secrets.GH_PAT }}
+      - name: 执行交付
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+        run: cd cron/cn_deploy && ./frontend.js
