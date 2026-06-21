@@ -22,10 +22,11 @@ const main = async () => {
   sshLive("sudo systemctl restart " + SERVICE)
 
   // 3. 验证（在服务器 bash 内 source .env 取 kvrocks 端口/密码）
+  // 注意：redis-cli 须 -h 127.0.0.1（空格），joined -h127.0.0.1 它不认（mariadb 两者皆可）
   const verify = "cd " + APP + "/docker && . .env && " +
     "t=$(mariadb -h127.0.0.1 -P4000 -uroot ai -N -e 'SHOW TABLES' | wc -l) && " +
-    "u=$(redis-cli -h127.0.0.1 -p \"$R_PORT\" -a \"$R_PASSWORD\" GET uid 2>/dev/null) && " +
-    "c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:3000/ || true) && " +
+    "u=$(redis-cli -h 127.0.0.1 -p \"$R_PORT\" -a \"$R_PASSWORD\" GET uid 2>/dev/null) && " +
+    "c=; for i in $(seq 1 10); do c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:3000/ || true); case \"$c\" in 2*|3*|4*) break;; esac; sleep 3; done && " +
     "echo RESULT TABLES=$t UID=$u PROBE=$c"
   const out = sshCap(remoteBash(verify))
   console.log(out)
