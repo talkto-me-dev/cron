@@ -10,6 +10,7 @@ const HOST = "cn",
   APP = "/home/talktome/site/talkto.me/alpha",
   SERVICE = "talkto-bio-alpha",
   PORT = 3000,
+  TIDB_DSN = "-h127.0.0.1 -P4000 -uroot ai",
   SUBS = [".", "srv", "conf", "lib", "ai", "site", "docker", "site/vibe", "site/static"],
   PROBE_TRIES = Number(process.env.HTTP_PROBE_RETRIES || 10),
   PROBE_INTERVAL_S = Number(process.env.HTTP_PROBE_INTERVAL_S || 3),
@@ -71,6 +72,17 @@ const probe = () => {
   }
 }
 
+// mysqldef 声明式增量：把本地 docker 库 schema 收敛到 srv/tidb.sql。
+// 不传 --enable-drop-table → 永不删表（安全）；DROP COLUMN 等会 apply，故 dry-run diff 进 output 供通知可见。
+const migrate = () => {
+  const at = "cd " + APP + "/srv && mysqldef " + TIDB_DSN
+  const diff = sshCap(remoteBash(at + " --dry-run < tidb.sql"))
+  console.log("mysqldef dry-run:\n" + diff)
+  writeOutput("mysqldef_diff", diff)
+  if (/DROP\s+COLUMN|RENAME\s+(COLUMN|TABLE)/i.test(diff)) console.log("⚠️ mysqldef diff 含潜在破坏性变更（仍 apply，详见上）")
+  sshLive(remoteBash(at + " < tidb.sql"))
+}
+
 const main = async () => {
   const old_hashes = captureHashes()
   console.log("old hashes:", old_hashes)
@@ -81,6 +93,9 @@ const main = async () => {
   const new_hashes = captureHashes()
   console.log("new hashes:", new_hashes)
   writeOutput("new_hashes", new_hashes)
+
+  // 迁移先于 restart：新代码起来前 schema 已就位
+  migrate()
 
   // alpha_cn.sh(=ExecStart) 在 restart 时自身跑 bun i + ./build.sh，故此处只 restart
   sshLive("sudo systemctl restart " + SERVICE)

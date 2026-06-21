@@ -18,6 +18,7 @@ jobs:
     outputs:
       old_hashes: ${{ steps.run.outputs.old_hashes }}
       new_hashes: ${{ steps.run.outputs.new_hashes }}
+      mysqldef_diff: ${{ steps.run.outputs.mysqldef_diff }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v5
