@@ -29,7 +29,12 @@ const parseKv = (out) =>
 
 const writeOutput = (key, value) => {
   const f = process.env.GITHUB_OUTPUT
-  if (f) appendFileSync(f, key + "=" + (typeof value === "string" ? value : JSON.stringify(value)) + "\n")
+  if (!f) return
+  const s = typeof value === "string" ? value : JSON.stringify(value)
+  // 多行值必须用 heredoc 分隔，否则 GITHUB_OUTPUT 报 "Invalid format"
+  const d = "__EOF_" + key
+  if (s.includes("\n")) appendFileSync(f, key + "<<" + d + "\n" + s + "\n" + d + "\n")
+  else appendFileSync(f, key + "=" + s + "\n")
 }
 
 const captureHashes = () =>
