@@ -63,21 +63,23 @@ export default async (updates) => {
       (await fetchHttpsCerts()).map((i) => [i.domainName, i.certStatus]),
     )
 
+  const matchUpdate = (cdn_domain) => {
+    for (const [cert_domain, pair] of updates) if (domainMatch(cert_domain, cdn_domain)) return [cert_domain, pair]
+  }
+
   let bound = 0, cleaned = 0
   for (const d of all_domains) {
     if (d.domainStatus !== "online") continue
-    const cert_status = https_certs.get(d.domainName)
-    if (cert_status === "ok") continue
-    if (cert_status === "expired") {
-      await unbind(d.domainName)
-      cleaned++
+    // 本次新签的证书：无论当前是否 ok 都重绑，实现到期前无缝续期
+    const hit = matchUpdate(d.domainName)
+    if (hit) {
+      await bind(d.domainName, hit[0], hit[1])
+      bound++
       continue
     }
-    for (const [cert_domain, pair] of updates) {
-      if (!domainMatch(cert_domain, d.domainName)) continue
-      await bind(d.domainName, cert_domain, pair)
-      bound++
-      break
+    if (https_certs.get(d.domainName) === "expired") {
+      await unbind(d.domainName)
+      cleaned++
     }
   }
 
