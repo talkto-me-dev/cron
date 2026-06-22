@@ -9,6 +9,7 @@ import DOMAIN from "../conf/DOMAIN.js";
 import R from "./R.js";
 import DNS from "./DNS.js";
 import rsync, { runHook } from "./rsync.js";
+import { notifyFeishu } from "../lib.js";
 
 const NOW = new Date(),
   ssl = Freessl(...FREESSL),
@@ -58,6 +59,13 @@ const NOW = new Date(),
     await rsync(domain, key_crt);
     return key_crt;
   }),
+  notify = async (err_count, updates, stat) => {
+    const ok = err_count === 0,
+      lines = ["更新域名: " + ([...updates.keys()].join("、") || "无")];
+    if (stat) lines.push("CDN 绑定 " + stat.bound + " 清理 " + stat.cleaned);
+    if (err_count) lines.push("失败 " + err_count + " 个域名，见日志");
+    await notifyFeishu((ok ? "✅" : "❌") + " SSL 证书 (ssl)", lines);
+  },
   genAll = async () => {
     let err_count = 0;
     const updates = new Map();
@@ -73,8 +81,11 @@ const NOW = new Date(),
       }
     }
     if (updates.size > 0) {
-      await runHook();
-      await cdn(updates);
+      await runHook(updates);
+      const stat = await cdn(updates);
+      await notify(err_count, updates, stat);
+    } else if (err_count > 0) {
+      await notify(err_count, updates, null);
     }
     return err_count;
   };

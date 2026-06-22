@@ -7,6 +7,7 @@
     "@3-/retry": "^0.0.4",
     "@3-/ssl": "^0.1.4",
     "@3-/zx": "^0.1.18",
+    "@alicloud/alidns20150109": "^4.4.1",
     "@alicloud/cdn20180510": "^9.2.0",
     "@alicloud/openapi-client": "^0.4.15"
   },
