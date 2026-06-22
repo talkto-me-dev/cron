@@ -82,4 +82,5 @@ export default async (updates) => {
   }
 
   console.log(`cdn: bound=${bound} cleaned=${cleaned}`)
+  return { bound, cleaned }
 }
