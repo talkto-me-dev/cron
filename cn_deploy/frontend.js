@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
 
-// alpha_cn 前端交付：runner(境外)干净 clone 全仓(dev) → 构建 → 阿里 OSS+CDN(dist.alpha_cn_cdn.sh)。
-// 与后端解耦、并行；不 SSH 境内机。阿里 AK/SK 在 conf/alpha_cn/ALI.js（clone 即得），无需 secret。
-// i18n 走 Google（仅构建期）→ runner 境外满足。仿 global server_deploy/frontend.js，但全仓 dev。
-
 import { run, GITCODE_TOKEN } from "../lib.js"
 import { bashRetryFn } from "../server_deploy/utils.js"
 
@@ -21,7 +17,6 @@ const REPOS_UNDER_SITE = [
 
 const cloneLine = (repo, path, bg) => "clone myaier/" + repo + " " + path + (bg ? " &" : "")
 
-// site 须先于 vibe/static（后者克隆进 site 子目录）；其余仓并发克隆
 const cloneScript = [
   "set -e",
   bashRetryFn,
