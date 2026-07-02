@@ -3,6 +3,7 @@
 import { Redis } from "ioredis";
 import { readFileSync } from "fs";
 import { SQL } from "bun";
+import sqlSplit from "./sql_split.js";
 
 const tidb = (await import("./TIDB.js")).default,
   kvrocks = (await import("./KVROCKS.js")).default,
@@ -49,17 +50,11 @@ const tidb = (await import("./TIDB.js")).default,
     await db.unsafe("SET FOREIGN_KEY_CHECKS = 1");
 
     const sql = readFileSync(sql_file, "utf8"),
-      statements = sql
-        .replace(/--.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .split(";")
-        .map((s) => s.trim())
-        .filter(
-          (s) =>
-            s.length > 0 &&
-            !s.toUpperCase().startsWith("USE") &&
-            !s.toUpperCase().startsWith("CREATE DATABASE"),
-        );
+      statements = sqlSplit(sql).filter(
+        (s) =>
+          !s.toUpperCase().startsWith("USE") &&
+          !s.toUpperCase().startsWith("CREATE DATABASE"),
+      );
 
     for (const s of statements) {
       await db.unsafe(s);

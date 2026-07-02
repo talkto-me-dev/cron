@@ -18,14 +18,16 @@ const main = async () => {
       .map((f) => f.split("_")[0]);
 
   const script_path = join(import.meta.dirname, "server_reset.js"),
-    script_content = readFileSync(script_path, "utf8");
+    script_content = readFileSync(script_path, "utf8"),
+    split_content = readFileSync(join(import.meta.dirname, "sql_split.js"), "utf8");
 
   ssh("c1", "cat > /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js", { input: script_content });
+  ssh("c1", "cat > /root/site/talkto.me/alpha/conf/alpha/sql_split.js", { input: split_content });
 
   const output = ssh("c1", `bash -c 'cd /root/site/talkto.me/alpha/conf/alpha/ && bun reset_alpha.js ${versions.join(" ")}'`);
   console.log(output);
 
-  ssh("c1", "rm -f /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js");
+  ssh("c1", "rm -f /root/site/talkto.me/alpha/conf/alpha/reset_alpha.js /root/site/talkto.me/alpha/conf/alpha/sql_split.js");
 
   ssh("c1", "bash -c 'cd /root/site/talkto.me/alpha/ && bash init_oauth.sh'");
 
